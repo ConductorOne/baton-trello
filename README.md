@@ -6,6 +6,14 @@
 
 Check out [Baton](https://github.com/conductorone/baton) to learn more the project in general.
 
+# Prerequisites
+
+1. Follow [Atlassian Developer Guide](https://developer.atlassian.com/cloud/trello/guides/power-ups/managing-power-ups/) to create a New Custom Power-Up and generate a valid API key
+2. Follow [Atlassian Support Guide](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/#:~:text=variable%20length%20instead.-,Create%20an%20API%20token,-API%20tokens%20with) to create an API token
+3. Use the Trello API to get the ID of the organizations you want to sync:
+   4. Go to the following URL in your browser (replace API-Key with your API key and Token with your access token):
+   `https://api.trello.com/1/organizations/[organization-name]?key=[API-Key]&token=[API-token]`
+
 # Getting Started
 
 ## brew
@@ -19,7 +27,7 @@ baton resources
 ## docker
 
 ```
-docker run --rm -v $(pwd):/out -e BATON_DOMAIN_URL=domain_url -e BATON_API_KEY=apiKey -e BATON_USERNAME=username ghcr.io/conductorone/baton-trello:latest -f "/out/sync.c1z"
+docker run --rm -v $(pwd):/out -e BATON_API_KEY=apiKey -e BATON_API_TOKEN=apiToken -e BATON_ORGS=trelloOrgs ghcr.io/conductorone/baton-trello:latest -f "/out/sync.c1z"
 docker run --rm -v $(pwd):/out ghcr.io/conductorone/baton:latest -f "/out/sync.c1z" resources
 ```
 
@@ -38,6 +46,7 @@ baton resources
 
 `baton-trello` will pull down information about the following resources:
 - Users
+- Organizations
 
 # Contributing, Support and Issues
 
@@ -63,12 +72,15 @@ Available Commands:
   help               Help about any command
 
 Flags:
+      --api-key string               required: The API key for your Trello account ($BATON_API_KEY)
+      --api-token string             required: The API token for your Trello account ($BATON_API_TOKEN)
       --client-id string             The client ID used to authenticate with ConductorOne ($BATON_CLIENT_ID)
       --client-secret string         The client secret used to authenticate with ConductorOne ($BATON_CLIENT_SECRET)
   -f, --file string                  The path to the c1z file to sync with ($BATON_FILE) (default "sync.c1z")
   -h, --help                         help for baton-trello
       --log-format string            The output format for logs: json, console ($BATON_LOG_FORMAT) (default "json")
       --log-level string             The log level: debug, info, warn, error ($BATON_LOG_LEVEL) (default "info")
+      --organizations stringArray    required: Limit syncing to specific organizations. ($BATON_ORGS)
   -p, --provisioning                 If this connector supports provisioning, this must be set in order for provisioning actions to be enabled ($BATON_PROVISIONING)
       --ticketing                    This must be set to enable ticketing support ($BATON_TICKETING)
   -v, --version                      version for baton-trello

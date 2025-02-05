@@ -2,6 +2,9 @@ package connector
 
 import (
 	"context"
+	"github.com/conductorone/baton-trello/pkg/client"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
 	"io"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -9,12 +12,15 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 )
 
-type Connector struct{}
+type Connector struct {
+	client *client.TrelloClient
+}
 
 // ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
 func (d *Connector) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
 	return []connectorbuilder.ResourceSyncer{
-		newUserBuilder(),
+		newUserBuilder(d.client),
+		newOrganizationBuilder(d.client),
 	}
 }
 
@@ -27,8 +33,8 @@ func (d *Connector) Asset(ctx context.Context, asset *v2.AssetRef) (string, io.R
 // Metadata returns metadata about the connector.
 func (d *Connector) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
 	return &v2.ConnectorMetadata{
-		DisplayName: "My Baton Connector",
-		Description: "The template implementation of a baton connector",
+		DisplayName: "Trello Connector",
+		Description: "Conector to sync users from Trello",
 	}, nil
 }
 
@@ -39,6 +45,16 @@ func (d *Connector) Validate(ctx context.Context) (annotations.Annotations, erro
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context) (*Connector, error) {
-	return &Connector{}, nil
+func New(ctx context.Context, trelloClient *client.TrelloClient) (*Connector, error) {
+	l := ctxzap.Extract(ctx)
+
+	trelloClient, err := client.New(ctx, trelloClient)
+	if err != nil {
+		l.Error("error creating Trello client", zap.Error(err))
+		return nil, err
+	}
+
+	return &Connector{
+		client: trelloClient,
+	}, nil
 }
