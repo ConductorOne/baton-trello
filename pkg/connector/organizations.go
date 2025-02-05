@@ -27,21 +27,8 @@ func (o *organizationBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 func (o *organizationBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	var resources []*v2.Resource
 
-	bag, pageToken, err := getToken(pToken, organizationResourceType)
-	if err != nil {
-		return nil, "", nil, err
-	}
+	organizations, annotation, err := o.client.ListOrganizations(ctx)
 
-	organizations, nextPageToken, annotation, err := o.client.ListOrganizations(ctx, client.PageOptions{
-		Page:    pageToken,
-		PerPage: pToken.Size,
-	})
-
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	err = bag.Next(nextPageToken)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -55,12 +42,7 @@ func (o *organizationBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken
 		resources = append(resources, orgResource)
 	}
 
-	nextPageToken, err = bag.Marshal()
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	return resources, nextPageToken, annotation, nil
+	return resources, "", annotation, nil
 }
 
 func parseIntoOrganizationResource(_ context.Context, organization *client.Organization, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
@@ -108,23 +90,10 @@ func (o *organizationBuilder) Entitlements(_ context.Context, resource *v2.Resou
 func (o *organizationBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	var grants []*v2.Grant
 
-	bag, pageToken, err := getToken(pToken, organizationResourceType)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
 	var organizationID = resource.Id.Resource
 
-	memberships, nextPageToken, err := o.client.ListMembershipsByOrg(ctx, client.PageOptions{
-		Page:    pageToken,
-		PerPage: pToken.Size,
-	}, organizationID)
+	memberships, err := o.client.ListMembershipsByOrg(ctx, organizationID)
 
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	err = bag.Next(nextPageToken)
 	if err != nil {
 		return nil, "", nil, err
 	}

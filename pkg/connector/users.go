@@ -25,20 +25,7 @@ func (o *userBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 func (o *userBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	var resources []*v2.Resource
 
-	bag, pageToken, err := getToken(pToken, userResourceType)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	users, nextPageToken, annotation, err := o.client.ListUsers(ctx, client.PageOptions{
-		Page:    pageToken,
-		PerPage: pToken.Size,
-	})
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	err = bag.Next(nextPageToken)
+	users, annotation, err := o.client.ListUsers(ctx)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -52,12 +39,7 @@ func (o *userBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 		resources = append(resources, userResource)
 	}
 
-	nextPageToken, err = bag.Marshal()
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	return resources, nextPageToken, annotation, nil
+	return resources, "", annotation, nil
 }
 
 func parseIntoUserResource(_ context.Context, user *client.User, parentResourceID *v2.ResourceId) (*v2.Resource, error) {

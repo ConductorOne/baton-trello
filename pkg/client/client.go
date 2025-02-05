@@ -10,14 +10,13 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	"github.com/tomnomnom/linkheader"
 )
 
 const (
 	domain = "https://api.trello.com/1"
 
 	getUsersByOrganization       = "/organizations/%s/members"
-	getOrganizations             = "/organizations/%s"
+	getOrganizationById          = "/organizations/%s"
 	getMembershipsByOrganization = "/organizations/%s/memberships"
 	getMemberById                = "/members/%s"
 )
@@ -100,50 +99,15 @@ func (c *TrelloClient) getBaseDomain() string {
 	return c.baseDomain
 }
 
-func (c *TrelloClient) ListUsers(ctx context.Context, opts PageOptions) (*[]User, string, annotations.Annotations, error) {
+func (c *TrelloClient) ListUsers(ctx context.Context) (*[]User, annotations.Annotations, error) {
 	queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getUsersByOrganization, c.organizationIDs[0]))
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	var res *[]User
 
-	nextPage, annotation, err := c.getResourcesFromAPI(ctx, queryUrl, &res, WithPage(opts.Page), WithPageLimit(opts.PerPage))
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	return res, nextPage, annotation, nil
-}
-
-func (c *TrelloClient) ListOrganizations(ctx context.Context, opts PageOptions) (*[]Organization, string, annotations.Annotations, error) {
-	res := &[]Organization{}
-	var annotation annotations.Annotations
-
-	for _, id := range c.organizationIDs {
-		organizationDetail, _, err := c.GetOrganizationDetail(ctx, id)
-		if err != nil {
-			return nil, "", nil, err
-		}
-
-		if organizationDetail != nil {
-			*res = append(*res, *organizationDetail)
-		} else {
-			return nil, "", nil, err
-		}
-
-	}
-
-	return res, "", annotation, nil
-}
-
-func (c *TrelloClient) GetOrganizationDetail(ctx context.Context, organizationID string) (*Organization, annotations.Annotations, error) {
-	queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getOrganizations, organizationID))
-	if err != nil {
-		return nil, nil, err
-	}
-	var res *Organization
-	_, annotation, err := c.doRequest(ctx, http.MethodGet, queryUrl, &res, WithPage(1), WithPageLimit(1))
+	annotation, err := c.getResourcesFromAPI(ctx, queryUrl, &res)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -151,31 +115,66 @@ func (c *TrelloClient) GetOrganizationDetail(ctx context.Context, organizationID
 	return res, annotation, nil
 }
 
-func (c *TrelloClient) ListMembershipsByOrg(ctx context.Context, opts PageOptions, resourceID string) (*[]User, string, error) {
+func (c *TrelloClient) ListOrganizations(ctx context.Context) (*[]Organization, annotations.Annotations, error) {
+	res := &[]Organization{}
+	var annotation annotations.Annotations
+
+	for _, id := range c.organizationIDs {
+		organizationDetail, _, err := c.GetOrganizationDetail(ctx, id)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if organizationDetail != nil {
+			*res = append(*res, *organizationDetail)
+		} else {
+			return nil, nil, err
+		}
+
+	}
+
+	return res, annotation, nil
+}
+
+func (c *TrelloClient) GetOrganizationDetail(ctx context.Context, organizationID string) (*Organization, annotations.Annotations, error) {
+	queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getOrganizationById, organizationID))
+	if err != nil {
+		return nil, nil, err
+	}
+	var res *Organization
+	_, annotation, err := c.doRequest(ctx, http.MethodGet, queryUrl, &res)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return res, annotation, nil
+}
+
+func (c *TrelloClient) ListMembershipsByOrg(ctx context.Context, resourceID string) (*[]User, error) {
 	queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getMembershipsByOrganization, resourceID))
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	var res *[]User
 	resources := &[]User{}
 
-	nextPageToken, _, err := c.getResourcesFromAPI(ctx, queryUrl, &res, WithPage(opts.Page), WithPageLimit(opts.PerPage))
+	_, err = c.getResourcesFromAPI(ctx, queryUrl, &res)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	for _, resource := range *res {
 		memberDetail, _, err := c.GetMemberDetails(ctx, resource.MemberID)
 		if err != nil {
-			return nil, "", err
+			return nil, err
 		}
 		memberDetail.MemberType = resource.MemberType
 
 		*resources = append(*resources, *memberDetail)
 	}
 
-	return resources, nextPageToken, nil
+	return resources, nil
 }
 
 func (c *TrelloClient) GetMemberDetails(ctx context.Context, memberID string) (*User, annotations.Annotations, error) {
@@ -184,7 +183,7 @@ func (c *TrelloClient) GetMemberDetails(ctx context.Context, memberID string) (*
 		return nil, nil, err
 	}
 	var res *User
-	_, annotation, err := c.doRequest(ctx, http.MethodGet, queryUrl, &res, WithPage(1), WithPageLimit(1))
+	_, annotation, err := c.doRequest(ctx, http.MethodGet, queryUrl, &res)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -196,28 +195,14 @@ func (c *TrelloClient) getResourcesFromAPI(
 	ctx context.Context,
 	urlAddress string,
 	res any,
-	reqOpt ...ReqOpt,
-) (string, annotations.Annotations, error) {
-	header, annotation, err := c.doRequest(ctx, http.MethodGet, urlAddress, &res, reqOpt...)
+) (annotations.Annotations, error) {
+	_, annotation, err := c.doRequest(ctx, http.MethodGet, urlAddress, &res)
 
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	var pageToken string
-	pagingLinks := linkheader.Parse(header.Get("Link"))
-	for _, link := range pagingLinks {
-		if link.Rel == "next" {
-			nextPageUrl, err := url.Parse(link.URL)
-			if err != nil {
-				return "", nil, err
-			}
-			pageToken = nextPageUrl.Query().Get("page")
-			break
-		}
-	}
-
-	return pageToken, annotation, nil
+	return annotation, nil
 }
 
 func (c *TrelloClient) doRequest(
@@ -225,7 +210,6 @@ func (c *TrelloClient) doRequest(
 	method string,
 	endpointUrl string,
 	res interface{},
-	reqOptions ...ReqOpt,
 ) (http.Header, annotations.Annotations, error) {
 	var (
 		resp *http.Response
@@ -236,10 +220,6 @@ func (c *TrelloClient) doRequest(
 
 	if err != nil {
 		return nil, nil, err
-	}
-
-	for _, o := range reqOptions {
-		o(urlAddress)
 	}
 
 	req, err := c.wrapper.NewRequest(
@@ -256,7 +236,7 @@ func (c *TrelloClient) doRequest(
 
 	switch method {
 	case http.MethodGet, http.MethodPut, http.MethodPost:
-		doOptions := []uhttp.DoOption{}
+		var doOptions []uhttp.DoOption
 		if res != nil {
 			doOptions = append(doOptions, uhttp.WithResponse(&res))
 		}
