@@ -46,7 +46,6 @@ func (o *organizationBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken
 }
 
 func parseIntoOrganizationResource(_ context.Context, organization *client.Organization, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
-
 	profile := map[string]interface{}{
 		"organization_id": organization.ID,
 		"display_name":    organization.DisplayName,

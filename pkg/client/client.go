@@ -3,11 +3,11 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/conductorone/baton-sdk/pkg/ratelimit"
 	"net/http"
 	"net/url"
 
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/ratelimit"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 )
@@ -58,9 +58,13 @@ func New(ctx context.Context, trelloClient *TrelloClient) (*TrelloClient, error)
 	return &client, nil
 }
 
-func NewClient() *TrelloClient {
+func NewClient(httpClient ...*uhttp.BaseHttpClient) *TrelloClient {
+	var wrapper = &uhttp.BaseHttpClient{}
+	if httpClient != nil || len(httpClient) != 0 {
+		wrapper = httpClient[0]
+	}
 	return &TrelloClient{
-		wrapper:         &uhttp.BaseHttpClient{},
+		wrapper:         wrapper,
 		baseDomain:      domain,
 		apiKey:          "",
 		apiToken:        "",
@@ -100,16 +104,22 @@ func (c *TrelloClient) getBaseDomain() string {
 }
 
 func (c *TrelloClient) ListUsers(ctx context.Context) (*[]User, annotations.Annotations, error) {
-	queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getUsersByOrganization, c.organizationIDs[0]))
-	if err != nil {
-		return nil, nil, err
-	}
+	l := ctxzap.Extract(ctx)
+	res := &[]User{}
+	var annotation annotations.Annotations
 
-	var res *[]User
+	for _, id := range c.organizationIDs {
+		queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getUsersByOrganization, id))
+		if err != nil {
+			l.Error(fmt.Sprintf("Error creating url: %s", err))
+			return nil, nil, err
+		}
 
-	annotation, err := c.getResourcesFromAPI(ctx, queryUrl, &res)
-	if err != nil {
-		return nil, nil, err
+		annotation, err = c.getResourcesFromAPI(ctx, queryUrl, &res)
+		if err != nil {
+			l.Error(fmt.Sprintf("Error getting resources: %s", err))
+			return nil, nil, err
+		}
 	}
 
 	return res, annotation, nil
@@ -117,20 +127,20 @@ func (c *TrelloClient) ListUsers(ctx context.Context) (*[]User, annotations.Anno
 
 func (c *TrelloClient) ListOrganizations(ctx context.Context) (*[]Organization, annotations.Annotations, error) {
 	res := &[]Organization{}
-	var annotation annotations.Annotations
+	annotation := annotations.Annotations{}
 
 	for _, id := range c.organizationIDs {
-		organizationDetail, _, err := c.GetOrganizationDetail(ctx, id)
+		organizationDetail, incomingAnnotation, err := c.GetOrganizationDetail(ctx, id)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		if organizationDetail != nil {
 			*res = append(*res, *organizationDetail)
+			annotation = incomingAnnotation
 		} else {
 			return nil, nil, err
 		}
-
 	}
 
 	return res, annotation, nil
@@ -267,7 +277,6 @@ func (c *TrelloClient) doRequest(
 	}
 
 	return nil, nil, err
-
 }
 
 func authorizeEndpointUrl(c *TrelloClient, endpointUrl string) string {
