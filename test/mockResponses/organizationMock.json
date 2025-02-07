@@ -1,0 +1,17 @@
+{
+	"id": "1ed53893-6225-4d74-9806-3eedcbb402dd",
+	"name": "organizationTest",
+	"displayName": "Trello Workspace Test",
+	"desc": "",
+	"descData": {
+		"emoji": {}
+	},
+	"url": "https://trello.com/w/organizationTest",
+	"website": null,
+	"teamType": null,
+	"logoHash": null,
+	"logoUrl": null,
+	"offering": "trello.business_class",
+	"products": [110],
+	"powerUps": [110]
+}

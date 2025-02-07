@@ -1,7 +1,9 @@
 package test
 
 import (
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/conductorone/baton-trello/pkg/client"
@@ -10,6 +12,7 @@ import (
 var (
 	UserIDs         = []string{"ea960e6c-f613-4bed-8852-ab012603915b", "8b21d0aa-39a4-4c09-86d2-d29dff8d261f"}
 	OrganizationIDs = []string{"organizationTest"}
+	BoardIDs        = []string{"f7a6a858-ab65-4524-9632-b64a21aa3c79", "eef3dd14-929f-4b85-b601-7cc4a484fa97"}
 )
 
 // Custom RoundTripper for testing.
@@ -42,4 +45,13 @@ func NewTestClient(response *http.Response, err error) *client.TrelloClient {
 	httpClient := &http.Client{Transport: transport}
 	baseHttpClient := uhttp.NewBaseHttpClient(httpClient)
 	return client.NewClient(baseHttpClient)
+}
+
+func ReadFile(fileName string) string {
+	data, err := os.ReadFile("../../test/mockResponses/" + fileName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return string(data)
 }

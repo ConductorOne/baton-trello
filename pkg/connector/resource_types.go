@@ -16,3 +16,9 @@ var organizationResourceType = &v2.ResourceType{
 	DisplayName: "Organization",
 	Traits:      []v2.ResourceType_Trait{v2.ResourceType_TRAIT_GROUP},
 }
+
+var boardResourceType = &v2.ResourceType{
+	Id:          "board",
+	DisplayName: "Board",
+	Traits:      []v2.ResourceType_Trait{v2.ResourceType_TRAIT_GROUP},
+}

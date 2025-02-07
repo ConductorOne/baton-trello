@@ -21,22 +21,7 @@ func TestTrelloClient_GetUsers(t *testing.T) {
 	mockResponse := &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     make(http.Header),
-		Body: io.NopCloser(strings.NewReader(`
-			[
-				{
-					"id": "ea960e6c-f613-4bed-8852-ab012603915b",
-					"fullName": "Test User 1",
-					"username": "tester1",
-					"lastActive": "2025-02-05T17:34:03.386Z"
-				},
-				{
-					"id": "8b21d0aa-39a4-4c09-86d2-d29dff8d261f",
-					"fullName": "Test User 2",
-					"username": "tester2",
-					"lastActive": "2025-02-03T12:48:18.512Z"
-				}
-			]
-		`)),
+		Body:       io.NopCloser(strings.NewReader(test.ReadFile("usersMock.json"))),
 	}
 	mockResponse.Header.Set("Content-Type", "application/json")
 

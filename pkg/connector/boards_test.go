@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"reflect"
@@ -13,14 +14,30 @@ import (
 	"github.com/conductorone/baton-trello/test"
 )
 
-// Tests that the client can fetch organizations based on the documented API below.
-// https://developer.atlassian.com/cloud/trello/rest/api-group-organizations/#api-organizations-id-get
-func TestTrelloClient_GetOrganizations(t *testing.T) {
+var expectedMemberships = [][]client.User{
+	{
+		{ID: test.UserIDs[0],
+			MemberID:   test.UserIDs[0],
+			MemberType: "admin"},
+		{ID: test.UserIDs[1],
+			MemberID:   test.UserIDs[1],
+			MemberType: "normal"},
+	},
+	{
+		{ID: test.UserIDs[0],
+			MemberID:   test.UserIDs[0],
+			MemberType: "admin"},
+	},
+}
+
+// Tests that the client can fetch boards based on the documented API below.
+// https://developer.atlassian.com/cloud/trello/rest/api-group-organizations/#api-organizations-id-boards-get
+func TestTrelloClient_GetBoards(t *testing.T) {
 	// Create a mock response.
 	mockResponse := &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     make(http.Header),
-		Body:       io.NopCloser(strings.NewReader(test.ReadFile("organizationMock.json"))),
+		Body:       io.NopCloser(strings.NewReader(test.ReadFile("boardsMock.json"))),
 	}
 	mockResponse.Header.Set("Content-Type", "application/json")
 
@@ -28,9 +45,9 @@ func TestTrelloClient_GetOrganizations(t *testing.T) {
 	testClient := test.NewTestClient(mockResponse, nil)
 	testClient.WithOrganizationIDs(test.OrganizationIDs)
 
-	// Call GetOrganizations
+	// Call GetBoards
 	ctx := context.Background()
-	result, nextOptions, err := testClient.ListOrganizations(ctx)
+	result, nextOptions, err := testClient.ListBoards(ctx)
 
 	// Check for errors.
 	if err != nil {
@@ -43,23 +60,46 @@ func TestTrelloClient_GetOrganizations(t *testing.T) {
 	}
 
 	// Check count.
-	if len(*result) != 1 {
-		t.Errorf("Expected Count to be 1, got %d", len(*result))
+	if len(*result) != 2 {
+		t.Errorf("Expected Count to be 2, got %d", len(*result))
 	}
 
-	for index, organization := range *result {
-		expectedOrg := client.Organization{
-			ID:          "1ed53893-6225-4d74-9806-3eedcbb402dd",
-			Name:        test.OrganizationIDs[index],
-			DisplayName: "Trello Workspace Test",
-			Url:         "https://trello.com/w/organizationTest",
-			Offering:    "trello.business_class",
-			Products:    []int{110},
-			PowerUps:    []int{110},
+	for index, board := range *result {
+		invitations := "members"
+		if index == 0 {
+			invitations = "admins"
+		}
+		expectedBoard := client.Board{
+			ID:             test.BoardIDs[index],
+			Name:           fmt.Sprintf("Test %d", index+1),
+			Closed:         false,
+			IdOrganization: test.OrganizationIDs[0],
+			Pinned:         false,
+			Url:            fmt.Sprintf("https://trello.com/b/test/test%d", index+1),
+			Preferences: client.Preferences{
+				PermissionLevel:     "org",
+				HideVotes:           false,
+				Voting:              "disabled",
+				Comments:            "members",
+				Invitations:         invitations,
+				SelfJoin:            true,
+				CardCovers:          true,
+				ShowCompleteStatus:  true,
+				CardCounts:          false,
+				IsTemplate:          false,
+				CardAging:           "regular",
+				CalendarFeedEnabled: false,
+				CanBePublic:         false,
+				CanBeEnterprise:     false,
+				CanBeOrg:            false,
+				CanBePrivate:        false,
+				CanInvite:           true,
+			},
+			Memberships: expectedMemberships[index],
 		}
 
-		if !reflect.DeepEqual(organization, expectedOrg) {
-			t.Errorf("Unexpected organization: got %+v, want %+v", organization, expectedOrg)
+		if !reflect.DeepEqual(board, expectedBoard) {
+			t.Errorf("Unexpected board: got %+v, want %+v", board, expectedBoard)
 		}
 	}
 
@@ -69,13 +109,13 @@ func TestTrelloClient_GetOrganizations(t *testing.T) {
 	}
 }
 
-func TestTrelloClient_GetOrganizations_RequestDetails(t *testing.T) {
+func TestTrelloClient_GetBoards_RequestDetails(t *testing.T) {
 	// Create a custom RoundTripper to capture the request.
 	var capturedRequest *http.Request
 	mockTransport := &test.MockRoundTripper{
 		Response: &http.Response{
 			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(`{}`)),
+			Body:       io.NopCloser(strings.NewReader(`[]`)),
 			Header:     make(http.Header),
 		},
 		Err: nil,
@@ -93,9 +133,9 @@ func TestTrelloClient_GetOrganizations_RequestDetails(t *testing.T) {
 	baseHttpClient := uhttp.NewBaseHttpClient(httpClient)
 	testClient := client.NewClient(baseHttpClient).WithApiKey("api-key").WithBearerToken("api-token").WithOrganizationIDs(test.OrganizationIDs)
 
-	// Call GetOrganizations.
+	// Call GetBoards.
 	ctx := context.Background()
-	_, _, err := testClient.ListOrganizations(ctx)
+	_, _, err := testClient.ListBoards(ctx)
 
 	// Check for errors.
 	if err != nil {
@@ -108,7 +148,7 @@ func TestTrelloClient_GetOrganizations_RequestDetails(t *testing.T) {
 	}
 
 	// Check URL components.
-	expectedURL := "https://api.trello.com/1/organizations/organizationTest?key=api-key&token=api-token"
+	expectedURL := "https://api.trello.com/1/organizations/organizationTest/boards?key=api-key&token=api-token"
 	if capturedRequest.URL.String() != expectedURL {
 		t.Errorf("Expected URL %s, got %s", expectedURL, capturedRequest.URL.String())
 	}
