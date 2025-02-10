@@ -3,21 +3,22 @@ package connector
 import (
 	"context"
 	"fmt"
-
-	"github.com/conductorone/baton-sdk/pkg/types/grant"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"sync"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
+	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/conductorone/baton-trello/pkg/client"
 )
 
 type boardBuilder struct {
-	resourceType *v2.ResourceType
-	client       *client.TrelloClient
+	resourceType     *v2.ResourceType
+	client           *client.TrelloClient
+	memberships      []client.User
+	membershipsMutex sync.RWMutex
 }
 
 func (o *boardBuilder) ResourceType(_ context.Context) *v2.ResourceType {
@@ -140,14 +141,12 @@ func (o *boardBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pag
 	if err != nil {
 		return nil, "", nil, err
 	}
-	memberships, err := o.client.ListMembershipsByBoard(ctx, boardID)
+	err = o.GetMemberships(ctx, boardID)
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	l := ctxzap.Extract(ctx)
-	l.Info(fmt.Sprintf("granting board %v", board))
-	for _, membership := range *memberships {
+	for _, membership := range o.memberships {
 		userResource, _ := parseIntoUserResource(ctx, &membership, resource.Id)
 		membershipType := membership.MemberType
 
@@ -200,4 +199,23 @@ func newBoardBuilder(c *client.TrelloClient) *boardBuilder {
 
 func evaluateMembership(membershipType, permission string) bool {
 	return (membershipType == "admin" && permission == "admins") || permission == "members"
+}
+
+func (o *boardBuilder) GetMemberships(ctx context.Context, boardID string) error {
+	o.membershipsMutex.RLock()
+	defer o.membershipsMutex.RUnlock()
+
+	if o.memberships != nil || len(o.memberships) > 0 {
+		return nil
+	}
+
+	memberships, err := o.client.ListMembershipsByBoard(ctx, boardID)
+
+	if err != nil {
+		return err
+	}
+
+	o.memberships = append(o.memberships, *memberships...)
+
+	return nil
 }

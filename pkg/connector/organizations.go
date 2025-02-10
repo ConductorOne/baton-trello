@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
@@ -14,8 +15,10 @@ import (
 )
 
 type organizationBuilder struct {
-	resourceType *v2.ResourceType
-	client       *client.TrelloClient
+	resourceType     *v2.ResourceType
+	client           *client.TrelloClient
+	memberships      []client.User
+	membershipsMutex sync.RWMutex
 }
 
 var memberTypes = []string{"admin", "normal", "observer"}
@@ -91,13 +94,13 @@ func (o *organizationBuilder) Grants(ctx context.Context, resource *v2.Resource,
 
 	var organizationID = resource.Id.Resource
 
-	memberships, err := o.client.ListMembershipsByOrg(ctx, organizationID)
+	err := o.GetMemberships(ctx, organizationID)
 
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	for _, membership := range *memberships {
+	for _, membership := range o.memberships {
 		userResource, _ := parseIntoUserResource(ctx, &membership, resource.Id)
 		membershipGrant := grant.NewGrant(resource, membership.MemberType, userResource, grant.WithAnnotation(&v2.V1Identifier{
 			Id: fmt.Sprintf("org-grant:%s:%s:%s", resource.Id.Resource, membership.MemberID, membership.MemberType),
@@ -113,4 +116,23 @@ func newOrganizationBuilder(c *client.TrelloClient) *organizationBuilder {
 		resourceType: organizationResourceType,
 		client:       c,
 	}
+}
+
+func (o *organizationBuilder) GetMemberships(ctx context.Context, organizationID string) error {
+	o.membershipsMutex.RLock()
+	defer o.membershipsMutex.RUnlock()
+
+	if o.memberships != nil || len(o.memberships) > 0 {
+		return nil
+	}
+
+	memberships, err := o.client.ListMembershipsByOrg(ctx, organizationID)
+
+	if err != nil {
+		return err
+	}
+
+	o.memberships = append(o.memberships, *memberships...)
+
+	return nil
 }
