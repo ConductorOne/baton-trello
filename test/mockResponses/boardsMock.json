@@ -1,0 +1,89 @@
+[
+  {
+    "id": "f7a6a858-ab65-4524-9632-b64a21aa3c79",
+    "name": "Test 1",
+    "desc": "",
+    "idOrganization": "organizationTest",
+    "idEnterprise": null,
+    "url": "https://trello.com/b/test/test1",
+    "prefs": {
+      "permissionLevel": "org",
+      "hideVotes": false,
+      "voting": "disabled",
+      "comments": "members",
+      "invitations": "admins",
+      "selfJoin": true,
+      "cardCovers": true,
+      "showCompleteStatus": true,
+      "cardCounts": false,
+      "isTemplate": false,
+      "cardAging": "regular",
+      "canBePublic": false,
+      "canBeEnterprise": false,
+      "canBeOrg": false,
+      "canBePrivate": false,
+      "canInvite": true
+    },
+    "shortLink": "test1",
+    "subscribed": false,
+    "idMemberCreator": "ea960e6c-f613-4bed-8852-ab012603915b",
+    "memberships": [
+      {
+        "id": "ea960e6c-f613-4bed-8852-ab012603915b",
+        "idMember": "ea960e6c-f613-4bed-8852-ab012603915b",
+        "memberType": "admin",
+        "unconfirmed": false,
+        "deactivated": false
+      },
+      {
+        "id": "8b21d0aa-39a4-4c09-86d2-d29dff8d261f",
+        "idMember": "8b21d0aa-39a4-4c09-86d2-d29dff8d261f",
+        "memberType": "normal",
+        "unconfirmed": false,
+        "deactivated": false
+      }
+    ]
+  },
+  {
+    "id": "eef3dd14-929f-4b85-b601-7cc4a484fa97",
+    "name": "Test 2",
+    "desc": "",
+    "descData": null,
+    "closed": false,
+    "dateClosed": null,
+    "idOrganization": "organizationTest",
+    "idEnterprise": null,
+    "url": "https://trello.com/b/test/test2",
+    "prefs": {
+      "permissionLevel": "org",
+      "hideVotes": false,
+      "voting": "disabled",
+      "comments": "members",
+      "invitations": "members",
+      "selfJoin": true,
+      "cardCovers": true,
+      "showCompleteStatus": true,
+      "cardCounts": false,
+      "isTemplate": false,
+      "cardAging": "regular",
+      "canBePublic": false,
+      "canBeEnterprise": false,
+      "canBeOrg": false,
+      "canBePrivate": false,
+      "canInvite": true
+    },
+    "shortLink": "test2",
+    "subscribed": false,
+    "idMemberCreator": "ea960e6c-f613-4bed-8852-ab012603915b",
+    "type": null,
+    "memberships": [
+      {
+        "id": "ea960e6c-f613-4bed-8852-ab012603915b",
+        "idMember": "ea960e6c-f613-4bed-8852-ab012603915b",
+        "memberType": "admin",
+        "unconfirmed": false,
+        "deactivated": false
+      }
+    ]
+  }
+]

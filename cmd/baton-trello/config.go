@@ -6,10 +6,26 @@ import (
 )
 
 var (
+	apiKeyField = field.StringField(
+		"api-key",
+		field.WithDescription("The API key for your Trello account"),
+		field.WithRequired(true),
+	)
+	apiTokenField = field.StringField(
+		"api-token",
+		field.WithDescription("The API token for your Trello account"),
+		field.WithRequired(true),
+	)
+	organizations = field.StringSliceField(
+		"organizations",
+		field.WithDescription("Limit syncing to specific organizations by providing organization slugs."),
+		field.WithRequired(true),
+	)
+
 	// ConfigurationFields defines the external configuration required for the
 	// connector to run. Note: these fields can be marked as optional or
 	// required.
-	ConfigurationFields = []field.SchemaField{}
+	ConfigurationFields = []field.SchemaField{apiKeyField, apiTokenField, organizations}
 
 	// FieldRelationships defines relationships between the fields listed in
 	// ConfigurationFields that can be automatically validated. For example, a
