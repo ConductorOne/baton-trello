@@ -25,12 +25,13 @@ func (o *userBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 func (o *userBuilder) List(ctx context.Context, _ *v2.ResourceId, _ *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	var resources []*v2.Resource
 
+	// Note: Trello API doesn't support pagination for member queries.
 	users, annotation, err := o.client.ListUsers(ctx)
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	for _, user := range *users {
+	for _, user := range users {
 		userCopy := user
 		userResource, err := parseIntoUserResource(ctx, &userCopy, nil)
 		if err != nil {

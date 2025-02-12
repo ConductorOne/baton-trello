@@ -44,7 +44,7 @@ func NewTestClient(response *http.Response, err error) *client.TrelloClient {
 	transport := &TestRoundTripper{response: response, err: err}
 	httpClient := &http.Client{Transport: transport}
 	baseHttpClient := uhttp.NewBaseHttpClient(httpClient)
-	return client.NewClient(baseHttpClient)
+	return client.NewClient("", "", OrganizationIDs, baseHttpClient)
 }
 
 func ReadFile(fileName string) string {

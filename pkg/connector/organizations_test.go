@@ -26,7 +26,6 @@ func TestTrelloClient_GetOrganizations(t *testing.T) {
 
 	// Create a test client with the mock response.
 	testClient := test.NewTestClient(mockResponse, nil)
-	testClient.WithOrganizationIDs(test.OrganizationIDs)
 
 	// Call GetOrganizations
 	ctx := context.Background()
@@ -43,11 +42,11 @@ func TestTrelloClient_GetOrganizations(t *testing.T) {
 	}
 
 	// Check count.
-	if len(*result) != 1 {
-		t.Errorf("Expected Count to be 1, got %d", len(*result))
+	if len(result) != 1 {
+		t.Errorf("Expected Count to be 1, got %d", len(result))
 	}
 
-	for index, organization := range *result {
+	for index, organization := range result {
 		expectedOrg := client.Organization{
 			ID:          "1ed53893-6225-4d74-9806-3eedcbb402dd",
 			Name:        test.OrganizationIDs[index],
@@ -91,7 +90,7 @@ func TestTrelloClient_GetOrganizations_RequestDetails(t *testing.T) {
 	// Create a test client with the mock transport.
 	httpClient := &http.Client{Transport: mockTransport}
 	baseHttpClient := uhttp.NewBaseHttpClient(httpClient)
-	testClient := client.NewClient(baseHttpClient).WithApiKey("api-key").WithBearerToken("api-token").WithOrganizationIDs(test.OrganizationIDs)
+	testClient := client.NewClient("api-key", "api-token", test.OrganizationIDs, baseHttpClient)
 
 	// Call GetOrganizations.
 	ctx := context.Background()

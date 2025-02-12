@@ -47,6 +47,7 @@ baton resources
 `baton-trello` will pull down information about the following resources:
 - Users
 - Organizations
+- Boards
 
 # Contributing, Support and Issues
 
@@ -80,7 +81,7 @@ Flags:
   -h, --help                         help for baton-trello
       --log-format string            The output format for logs: json, console ($BATON_LOG_FORMAT) (default "json")
       --log-level string             The log level: debug, info, warn, error ($BATON_LOG_LEVEL) (default "info")
-      --organizations stringArray    required: Limit syncing to specific organizations. ($BATON_ORGS)
+      --organizations stringArray    required: Limit syncing to specific organizations ($BATON_ORGS)
   -p, --provisioning                 If this connector supports provisioning, this must be set in order for provisioning actions to be enabled ($BATON_PROVISIONING)
       --ticketing                    This must be set to enable ticketing support ($BATON_TICKETING)
   -v, --version                      version for baton-trello

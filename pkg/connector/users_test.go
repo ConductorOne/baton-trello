@@ -27,7 +27,6 @@ func TestTrelloClient_GetUsers(t *testing.T) {
 
 	// Create a test client with the mock response.
 	testClient := test.NewTestClient(mockResponse, nil)
-	testClient.WithOrganizationIDs(test.OrganizationIDs)
 
 	// Call GetUsers
 	ctx := context.Background()
@@ -44,11 +43,11 @@ func TestTrelloClient_GetUsers(t *testing.T) {
 	}
 
 	// Check count.
-	if len(*result) != 2 {
-		t.Errorf("Expected Count to be 2, got %d", len(*result))
+	if len(result) != 2 {
+		t.Errorf("Expected Count to be 2, got %d", len(result))
 	}
 
-	for index, user := range *result {
+	for index, user := range result {
 		expectedUser := client.User{
 			ID:       test.UserIDs[index],
 			Username: fmt.Sprintf("tester%d", index+1),
@@ -88,7 +87,7 @@ func TestTrelloClient_GetUsers_RequestDetails(t *testing.T) {
 	// Create a test client with the mock transport.
 	httpClient := &http.Client{Transport: mockTransport}
 	baseHttpClient := uhttp.NewBaseHttpClient(httpClient)
-	testClient := client.NewClient(baseHttpClient).WithApiKey("api-key").WithBearerToken("api-token").WithOrganizationIDs(test.OrganizationIDs)
+	testClient := client.NewClient("api-key", "api-token", test.OrganizationIDs, baseHttpClient)
 
 	// Call GetUsers.
 	ctx := context.Background()
@@ -145,7 +144,6 @@ func TestTrelloClient_GetUserDetails(t *testing.T) {
 
 	// Create a test client with the mock response.
 	testClient := test.NewTestClient(mockResponse, nil)
-	testClient.WithOrganizationIDs(test.OrganizationIDs)
 
 	// Call GetUsers
 	ctx := context.Background()

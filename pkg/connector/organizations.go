@@ -17,7 +17,7 @@ import (
 type organizationBuilder struct {
 	resourceType     *v2.ResourceType
 	client           *client.TrelloClient
-	memberships      []client.User
+	memberships      map[string][]client.User
 	membershipsMutex sync.RWMutex
 }
 
@@ -27,16 +27,17 @@ func (o *organizationBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 	return organizationResourceType
 }
 
-func (o *organizationBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (o *organizationBuilder) List(ctx context.Context, _ *v2.ResourceId, _ *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	var resources []*v2.Resource
 
+	// Note: Trello API only support getting organizations by ID so it is not a bulk operation. Pagination is not needed.
 	organizations, annotation, err := o.client.ListOrganizations(ctx)
 
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	for _, organization := range *organizations {
+	for _, organization := range organizations {
 		orgCopy := organization
 		orgResource, err := parseIntoOrganizationResource(ctx, &orgCopy, nil)
 		if err != nil {
@@ -94,13 +95,14 @@ func (o *organizationBuilder) Grants(ctx context.Context, resource *v2.Resource,
 
 	var organizationID = resource.Id.Resource
 
+	// Note: Trello API doesn't support pagination for member queries.
 	err := o.GetMemberships(ctx, organizationID)
 
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	for _, membership := range o.memberships {
+	for _, membership := range o.memberships[organizationID] {
 		userResource, _ := parseIntoUserResource(ctx, &membership, resource.Id)
 		membershipGrant := grant.NewGrant(resource, membership.MemberType, userResource, grant.WithAnnotation(&v2.V1Identifier{
 			Id: fmt.Sprintf("org-grant:%s:%s:%s", resource.Id.Resource, membership.MemberID, membership.MemberType),
@@ -122,7 +124,11 @@ func (o *organizationBuilder) GetMemberships(ctx context.Context, organizationID
 	o.membershipsMutex.RLock()
 	defer o.membershipsMutex.RUnlock()
 
-	if o.memberships != nil || len(o.memberships) > 0 {
+	if o.memberships == nil {
+		o.memberships = make(map[string][]client.User)
+	}
+
+	if o.memberships[organizationID] != nil || len(o.memberships[organizationID]) > 0 {
 		return nil
 	}
 
@@ -132,7 +138,7 @@ func (o *organizationBuilder) GetMemberships(ctx context.Context, organizationID
 		return err
 	}
 
-	o.memberships = append(o.memberships, *memberships...)
+	o.memberships[organizationID] = memberships
 
 	return nil
 }

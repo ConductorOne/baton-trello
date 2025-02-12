@@ -43,7 +43,6 @@ func TestTrelloClient_GetBoards(t *testing.T) {
 
 	// Create a test client with the mock response.
 	testClient := test.NewTestClient(mockResponse, nil)
-	testClient.WithOrganizationIDs(test.OrganizationIDs)
 
 	// Call GetBoards
 	ctx := context.Background()
@@ -60,11 +59,11 @@ func TestTrelloClient_GetBoards(t *testing.T) {
 	}
 
 	// Check count.
-	if len(*result) != 2 {
-		t.Errorf("Expected Count to be 2, got %d", len(*result))
+	if len(result) != 2 {
+		t.Errorf("Expected Count to be 2, got %d", len(result))
 	}
 
-	for index, board := range *result {
+	for index, board := range result {
 		invitations := "members"
 		if index == 0 {
 			invitations = "admins"
@@ -131,7 +130,7 @@ func TestTrelloClient_GetBoards_RequestDetails(t *testing.T) {
 	// Create a test client with the mock transport.
 	httpClient := &http.Client{Transport: mockTransport}
 	baseHttpClient := uhttp.NewBaseHttpClient(httpClient)
-	testClient := client.NewClient(baseHttpClient).WithApiKey("api-key").WithBearerToken("api-token").WithOrganizationIDs(test.OrganizationIDs)
+	testClient := client.NewClient("api-key", "api-token", test.OrganizationIDs, baseHttpClient)
 
 	// Call GetBoards.
 	ctx := context.Background()

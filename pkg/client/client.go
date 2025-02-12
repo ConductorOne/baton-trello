@@ -25,19 +25,19 @@ const (
 )
 
 type TrelloClient struct {
-	apiToken        string
-	apiKey          string
-	baseDomain      string
-	organizationIDs []string
+	ApiToken        string
+	ApiKey          string
+	BaseDomain      string
+	OrganizationIDs []string
 	wrapper         *uhttp.BaseHttpClient
 }
 
 func New(ctx context.Context, trelloClient *TrelloClient) (*TrelloClient, error) {
 	var (
-		clientKey       = trelloClient.getApiKey()
-		clientToken     = trelloClient.getApiToken()
-		clientDomain    = trelloClient.getBaseDomain()
-		organizationIDs = trelloClient.getOrganizationIDs()
+		clientKey       = trelloClient.ApiKey
+		clientToken     = trelloClient.ApiToken
+		clientDomain    = trelloClient.BaseDomain
+		organizationIDs = trelloClient.OrganizationIDs
 	)
 
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
@@ -52,67 +52,36 @@ func New(ctx context.Context, trelloClient *TrelloClient) (*TrelloClient, error)
 
 	client := TrelloClient{
 		wrapper:         cli,
-		apiKey:          clientKey,
-		apiToken:        clientToken,
-		baseDomain:      clientDomain,
-		organizationIDs: organizationIDs,
+		ApiKey:          clientKey,
+		ApiToken:        clientToken,
+		BaseDomain:      clientDomain,
+		OrganizationIDs: organizationIDs,
 	}
 
 	return &client, nil
 }
 
-func NewClient(httpClient ...*uhttp.BaseHttpClient) *TrelloClient {
+func NewClient(apiKey, apiToken string, organizationIDs []string, httpClient ...*uhttp.BaseHttpClient) *TrelloClient {
 	var wrapper = &uhttp.BaseHttpClient{}
 	if httpClient != nil || len(httpClient) != 0 {
 		wrapper = httpClient[0]
 	}
 	return &TrelloClient{
 		wrapper:         wrapper,
-		baseDomain:      domain,
-		apiKey:          "",
-		apiToken:        "",
-		organizationIDs: []string{},
+		BaseDomain:      domain,
+		ApiKey:          apiKey,
+		ApiToken:        apiToken,
+		OrganizationIDs: organizationIDs,
 	}
 }
 
-func (c *TrelloClient) WithBearerToken(apiToken string) *TrelloClient {
-	c.apiToken = apiToken
-	return c
-}
-
-func (c *TrelloClient) WithApiKey(apiKey string) *TrelloClient {
-	c.apiKey = apiKey
-	return c
-}
-
-func (c *TrelloClient) WithOrganizationIDs(organizationIDs []string) *TrelloClient {
-	c.organizationIDs = organizationIDs
-	return c
-}
-
-func (c *TrelloClient) getApiKey() string {
-	return c.apiKey
-}
-
-func (c *TrelloClient) getApiToken() string {
-	return c.apiToken
-}
-
-func (c *TrelloClient) getOrganizationIDs() []string {
-	return c.organizationIDs
-}
-
-func (c *TrelloClient) getBaseDomain() string {
-	return c.baseDomain
-}
-
-func (c *TrelloClient) ListUsers(ctx context.Context) (*[]User, annotations.Annotations, error) {
+func (c *TrelloClient) ListUsers(ctx context.Context) ([]User, annotations.Annotations, error) {
 	l := ctxzap.Extract(ctx)
-	res := &[]User{}
+	var res []User
 	var annotation annotations.Annotations
 
-	for _, id := range c.organizationIDs {
-		queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getUsersByOrganization, id))
+	for _, id := range c.OrganizationIDs {
+		queryUrl, err := url.JoinPath(c.BaseDomain, fmt.Sprintf(getUsersByOrganization, id))
 		if err != nil {
 			l.Error(fmt.Sprintf("Error creating url: %s", err))
 			return nil, nil, err
@@ -128,18 +97,18 @@ func (c *TrelloClient) ListUsers(ctx context.Context) (*[]User, annotations.Anno
 	return res, annotation, nil
 }
 
-func (c *TrelloClient) ListOrganizations(ctx context.Context) (*[]Organization, annotations.Annotations, error) {
-	res := &[]Organization{}
+func (c *TrelloClient) ListOrganizations(ctx context.Context) ([]Organization, annotations.Annotations, error) {
+	var res []Organization
 	annotation := annotations.Annotations{}
 
-	for _, id := range c.organizationIDs {
+	for _, id := range c.OrganizationIDs {
 		organizationDetail, incomingAnnotation, err := c.GetOrganizationDetail(ctx, id)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		if organizationDetail != nil {
-			*res = append(*res, *organizationDetail)
+			res = append(res, *organizationDetail)
 			annotation = incomingAnnotation
 		} else {
 			return nil, nil, err
@@ -149,14 +118,14 @@ func (c *TrelloClient) ListOrganizations(ctx context.Context) (*[]Organization, 
 	return res, annotation, nil
 }
 
-func (c *TrelloClient) ListBoards(ctx context.Context) (*[]Board, annotations.Annotations, error) {
+func (c *TrelloClient) ListBoards(ctx context.Context) ([]Board, annotations.Annotations, error) {
 	l := ctxzap.Extract(ctx)
-	resources := &[]Board{}
+	var resources []Board
 	var annotation annotations.Annotations
 
-	for _, id := range c.organizationIDs {
-		res := &[]Board{}
-		queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getBoardsByOrganization, id))
+	for _, id := range c.OrganizationIDs {
+		var res []Board
+		queryUrl, err := url.JoinPath(c.BaseDomain, fmt.Sprintf(getBoardsByOrganization, id))
 		if err != nil {
 			l.Error(fmt.Sprintf("Error creating url: %s", err))
 			return nil, nil, err
@@ -164,7 +133,7 @@ func (c *TrelloClient) ListBoards(ctx context.Context) (*[]Board, annotations.An
 
 		annotation, err = c.getResourcesFromAPI(ctx, queryUrl, &res)
 		if err == nil {
-			*resources = append(*resources, *res...)
+			resources = append(resources, res...)
 		} else {
 			l.Error(fmt.Sprintf("Error getting resources: %s", err))
 			return nil, nil, err
@@ -175,7 +144,7 @@ func (c *TrelloClient) ListBoards(ctx context.Context) (*[]Board, annotations.An
 }
 
 func (c *TrelloClient) GetBoardDetails(ctx context.Context, boardID string) (*Board, annotations.Annotations, error) {
-	queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getBoardById, boardID))
+	queryUrl, err := url.JoinPath(c.BaseDomain, fmt.Sprintf(getBoardById, boardID))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -188,8 +157,8 @@ func (c *TrelloClient) GetBoardDetails(ctx context.Context, boardID string) (*Bo
 	return res, annotation, nil
 }
 
-func (c *TrelloClient) ListMembershipsByBoard(ctx context.Context, boardID string) (*[]User, error) {
-	queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getMembershipsByBoard, boardID))
+func (c *TrelloClient) ListMembershipsByBoard(ctx context.Context, boardID string) ([]User, error) {
+	queryUrl, err := url.JoinPath(c.BaseDomain, fmt.Sprintf(getMembershipsByBoard, boardID))
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +167,7 @@ func (c *TrelloClient) ListMembershipsByBoard(ctx context.Context, boardID strin
 }
 
 func (c *TrelloClient) GetOrganizationDetail(ctx context.Context, organizationID string) (*Organization, annotations.Annotations, error) {
-	queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getOrganizationById, organizationID))
+	queryUrl, err := url.JoinPath(c.BaseDomain, fmt.Sprintf(getOrganizationById, organizationID))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -211,8 +180,8 @@ func (c *TrelloClient) GetOrganizationDetail(ctx context.Context, organizationID
 	return res, annotation, nil
 }
 
-func (c *TrelloClient) ListMembershipsByOrg(ctx context.Context, resourceID string) (*[]User, error) {
-	queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getMembershipsByOrganization, resourceID))
+func (c *TrelloClient) ListMembershipsByOrg(ctx context.Context, resourceID string) ([]User, error) {
+	queryUrl, err := url.JoinPath(c.BaseDomain, fmt.Sprintf(getMembershipsByOrganization, resourceID))
 	if err != nil {
 		return nil, err
 	}
@@ -220,30 +189,30 @@ func (c *TrelloClient) ListMembershipsByOrg(ctx context.Context, resourceID stri
 	return c.listMembershipsByResource(ctx, queryUrl)
 }
 
-func (c *TrelloClient) listMembershipsByResource(ctx context.Context, queryUrl string) (*[]User, error) {
-	var res *[]User
-	resources := &[]User{}
+func (c *TrelloClient) listMembershipsByResource(ctx context.Context, queryUrl string) ([]User, error) {
+	var res []User
+	var resources []User
 
 	_, err := c.getResourcesFromAPI(ctx, queryUrl, &res)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, resource := range *res {
+	for _, resource := range res {
 		memberDetail, _, err := c.GetMemberDetails(ctx, resource.MemberID)
 		if err != nil {
 			return nil, err
 		}
 		memberDetail.MemberType = resource.MemberType
 
-		*resources = append(*resources, *memberDetail)
+		resources = append(resources, *memberDetail)
 	}
 
 	return resources, nil
 }
 
 func (c *TrelloClient) GetMemberDetails(ctx context.Context, memberID string) (*User, annotations.Annotations, error) {
-	queryUrl, err := url.JoinPath(c.baseDomain, fmt.Sprintf(getMemberById, memberID))
+	queryUrl, err := url.JoinPath(c.BaseDomain, fmt.Sprintf(getMemberById, memberID))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -335,5 +304,5 @@ func (c *TrelloClient) doRequest(
 }
 
 func authorizeEndpointUrl(c *TrelloClient, endpointUrl string) string {
-	return endpointUrl + "?key=" + c.apiKey + "&token=" + c.apiToken
+	return endpointUrl + "?key=" + c.ApiKey + "&token=" + c.ApiToken
 }

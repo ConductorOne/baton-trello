@@ -17,7 +17,7 @@ import (
 type boardBuilder struct {
 	resourceType     *v2.ResourceType
 	client           *client.TrelloClient
-	memberships      []client.User
+	memberships      map[string][]client.User
 	membershipsMutex sync.RWMutex
 }
 
@@ -28,12 +28,13 @@ func (o *boardBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 func (o *boardBuilder) List(ctx context.Context, _ *v2.ResourceId, _ *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	var resources []*v2.Resource
 
+	// Note: Trello API doesn't support pagination for boards by organization queries.
 	boards, annotation, err := o.client.ListBoards(ctx)
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	for _, board := range *boards {
+	for _, board := range boards {
 		boardCopy := board
 		parentResourceId, err := resource.NewResourceID(organizationResourceType, board.IdOrganization)
 		if err != nil {
@@ -85,6 +86,7 @@ func parseIntoBoardResource(_ context.Context, board *client.Board, parentResour
 func (o *boardBuilder) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
 	var entitlements []*v2.Entitlement
 
+	// Note: Trello API only support getting boards by ID so it is not a bulk operation. Pagination is not needed.
 	board, _, err := o.client.GetBoardDetails(ctx, resource.Id.Resource)
 	if err != nil {
 		return nil, "", nil, err
@@ -137,6 +139,7 @@ func (o *boardBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pag
 
 	var boardID = resource.Id.Resource
 
+	// Note: Trello API only support getting boards by ID so it is not a bulk operation. Pagination is not needed.
 	board, _, err := o.client.GetBoardDetails(ctx, boardID)
 	if err != nil {
 		return nil, "", nil, err
@@ -146,7 +149,7 @@ func (o *boardBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pag
 		return nil, "", nil, err
 	}
 
-	for _, membership := range o.memberships {
+	for _, membership := range o.memberships[boardID] {
 		userResource, _ := parseIntoUserResource(ctx, &membership, resource.Id)
 		membershipType := membership.MemberType
 
@@ -205,7 +208,11 @@ func (o *boardBuilder) GetMemberships(ctx context.Context, boardID string) error
 	o.membershipsMutex.RLock()
 	defer o.membershipsMutex.RUnlock()
 
-	if o.memberships != nil || len(o.memberships) > 0 {
+	if o.memberships == nil {
+		o.memberships = make(map[string][]client.User)
+	}
+
+	if o.memberships[boardID] != nil || len(o.memberships[boardID]) > 0 {
 		return nil
 	}
 
@@ -215,7 +222,7 @@ func (o *boardBuilder) GetMemberships(ctx context.Context, boardID string) error
 		return err
 	}
 
-	o.memberships = append(o.memberships, *memberships...)
+	o.memberships[boardID] = memberships
 
 	return nil
 }

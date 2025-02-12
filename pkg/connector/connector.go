@@ -28,7 +28,7 @@ func (d *Connector) ResourceSyncers(ctx context.Context) []connectorbuilder.Reso
 
 // Asset takes an input AssetRef and attempts to fetch it using the connector's authenticated http client
 // It streams a response, always starting with a metadata object, following by chunked payloads for the asset.
-func (d *Connector) Asset(ctx context.Context, asset *v2.AssetRef) (string, io.ReadCloser, error) {
+func (d *Connector) Asset(_ context.Context, _ *v2.AssetRef) (string, io.ReadCloser, error) {
 	return "", nil, nil
 }
 
@@ -36,13 +36,13 @@ func (d *Connector) Asset(ctx context.Context, asset *v2.AssetRef) (string, io.R
 func (d *Connector) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
 	return &v2.ConnectorMetadata{
 		DisplayName: "Trello Connector",
-		Description: "Conector to sync users from Trello",
+		Description: "Connector to sync users, organizations and boards from Trello",
 	}, nil
 }
 
 // Validate is called to ensure that the connector is properly configured. It should exercise any API credentials
 // to be sure that they are valid.
-func (d *Connector) Validate(ctx context.Context) (annotations.Annotations, error) {
+func (d *Connector) Validate(_ context.Context) (annotations.Annotations, error) {
 	return nil, nil
 }
 

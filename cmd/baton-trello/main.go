@@ -46,17 +46,15 @@ func main() {
 
 func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, error) {
 	l := ctxzap.Extract(ctx)
-	trelloClient := client.NewClient()
-
-	if err := ValidateConfig(v); err != nil {
-		return nil, err
-	}
 
 	apiKey := v.GetString(apiKeyField.FieldName)
 	apiToken := v.GetString(apiTokenField.FieldName)
 	orgs := v.GetStringSlice(organizations.FieldName)
 
-	trelloClient = trelloClient.WithApiKey(apiKey).WithBearerToken(apiToken).WithOrganizationIDs(orgs)
+	trelloClient := client.NewClient(apiKey, apiToken, orgs)
+	if err := ValidateConfig(v); err != nil {
+		return nil, err
+	}
 
 	connectorBuilder, err := connectorSchema.New(ctx, trelloClient)
 	if err != nil {
