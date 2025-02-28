@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/conductorone/baton-trello/pkg/client"
-
 	"github.com/conductorone/baton-sdk/pkg/config"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/field"
@@ -51,12 +49,11 @@ func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, e
 	apiToken := v.GetString(apiTokenField.FieldName)
 	orgs := v.GetStringSlice(organizations.FieldName)
 
-	trelloClient := client.NewClient(apiKey, apiToken, orgs)
 	if err := ValidateConfig(v); err != nil {
 		return nil, err
 	}
 
-	connectorBuilder, err := connectorSchema.New(ctx, trelloClient)
+	connectorBuilder, err := connectorSchema.New(ctx, apiKey, apiToken, orgs)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err
