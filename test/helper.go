@@ -1,7 +1,7 @@
 package test
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -50,7 +50,7 @@ func NewTestClient(response *http.Response, err error) *client.TrelloClient {
 func ReadFile(fileName string) string {
 	data, err := os.ReadFile("../../test/mockResponses/" + fileName)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
 	}
 
 	return string(data)
