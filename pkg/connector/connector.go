@@ -47,10 +47,10 @@ func (d *Connector) Validate(_ context.Context) (annotations.Annotations, error)
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, trelloClient *client.TrelloClient) (*Connector, error) {
+func New(ctx context.Context, apiKey string, apiToken string, orgs []string) (*Connector, error) {
 	l := ctxzap.Extract(ctx)
 
-	trelloClient, err := client.New(ctx, trelloClient)
+	trelloClient, err := client.New(ctx, client.NewClient(apiKey, apiToken, orgs))
 	if err != nil {
 		l.Error("error creating Trello client", zap.Error(err))
 		return nil, err
