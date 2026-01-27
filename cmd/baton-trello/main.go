@@ -8,8 +8,8 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/config"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/connectorrunner"
-	"github.com/conductorone/baton-sdk/pkg/field"
 	"github.com/conductorone/baton-sdk/pkg/types"
+	cfg "github.com/conductorone/baton-trello/pkg/config"
 	connectorSchema "github.com/conductorone/baton-trello/pkg/connector"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/spf13/viper"
@@ -25,9 +25,7 @@ func main() {
 		ctx,
 		"baton-trello",
 		getConnector,
-		field.Configuration{
-			Fields: ConfigurationFields,
-		},
+		cfg.Config,
 		connectorrunner.WithDefaultCapabilitiesConnectorBuilder(&connectorSchema.Connector{}),
 	)
 	if err != nil {
@@ -47,9 +45,9 @@ func main() {
 func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, error) {
 	l := ctxzap.Extract(ctx)
 
-	apiKey := v.GetString(apiKeyField.FieldName)
-	apiToken := v.GetString(apiTokenField.FieldName)
-	orgs := v.GetStringSlice(organizations.FieldName)
+	apiKey := v.GetString(cfg.ApiKeyField.FieldName)
+	apiToken := v.GetString(cfg.ApiTokenField.FieldName)
+	orgs := v.GetStringSlice(cfg.OrganizationsField.FieldName)
 
 	if err := ValidateConfig(v); err != nil {
 		return nil, err
