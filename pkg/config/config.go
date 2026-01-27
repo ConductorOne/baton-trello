@@ -23,16 +23,21 @@ var (
 		field.WithRequired(true),
 	)
 
-	// ConfigurationFields defines the external configuration required for the
-	// connector to run.
-	ConfigurationFields = []field.SchemaField{ApiKeyField, ApiTokenField, OrganizationsField}
-
 	// FieldRelationships defines relationships between the fields.
 	FieldRelationships = []field.SchemaFieldRelationship{}
-
-	// Config is the configuration schema for the connector.
-	Config = field.Configuration{
-		Fields:      ConfigurationFields,
-		Constraints: FieldRelationships,
-	}
 )
+
+// Config is the configuration schema for the connector.
+var Config = field.NewConfiguration([]field.SchemaField{
+	ApiKeyField,
+	ApiTokenField,
+	OrganizationsField,
+})
+
+// ValidateConfig is run after the configuration is loaded, and should return an
+// error if it isn't valid. Implementing this function is optional, it only
+// needs to perform extra validations that cannot be encoded with configuration
+// parameters.
+func ValidateConfig(c *Trello) error {
+	return nil
+}
