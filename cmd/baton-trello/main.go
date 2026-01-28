@@ -9,6 +9,7 @@ import (
 	connectorSchema "github.com/conductorone/baton-trello/pkg/connector"
 	"github.com/conductorone/baton-sdk/pkg/config"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
+	"github.com/conductorone/baton-sdk/pkg/connectorrunner"
 	"github.com/conductorone/baton-sdk/pkg/types"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"go.uber.org/zap"
@@ -24,6 +25,7 @@ func main() {
 		"baton-trello",
 		getConnector,
 		cfg.Config,
+		connectorrunner.WithDefaultCapabilitiesConnectorBuilder(&connectorSchema.Connector{}),
 	)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
