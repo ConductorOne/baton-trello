@@ -48,7 +48,7 @@ func getConnector(ctx context.Context, tc *cfg.Trello) (types.ConnectorServer, e
 		return nil, err
 	}
 
-	connectorBuilder, err := connectorSchema.New(ctx, tc.ApiKey, tc.ApiToken, tc.Organizations)
+	connectorBuilder, err := connectorSchema.New(ctx, tc.ApiKey, tc.ApiToken, tc.Organizations, tc.BaseUrl)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err

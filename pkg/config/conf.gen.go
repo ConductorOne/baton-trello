@@ -7,6 +7,7 @@ type Trello struct {
 	ApiKey string `mapstructure:"api-key"`
 	ApiToken string `mapstructure:"api-token"`
 	Organizations []string `mapstructure:"organizations"`
+	BaseUrl string `mapstructure:"base-url"`
 }
 
 func (c *Trello) findFieldByTag(tagValue string) (any, bool) {

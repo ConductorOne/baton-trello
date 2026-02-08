@@ -61,14 +61,18 @@ func New(ctx context.Context, trelloClient *TrelloClient) (*TrelloClient, error)
 	return &client, nil
 }
 
-func NewClient(apiKey, apiToken string, organizationIDs []string, httpClient ...*uhttp.BaseHttpClient) *TrelloClient {
+func NewClient(apiKey, apiToken string, organizationIDs []string, baseURL string, httpClient ...*uhttp.BaseHttpClient) *TrelloClient {
 	var wrapper = &uhttp.BaseHttpClient{}
 	if httpClient != nil || len(httpClient) != 0 {
 		wrapper = httpClient[0]
 	}
+	baseDomain := domain
+	if baseURL != "" {
+		baseDomain = baseURL
+	}
 	return &TrelloClient{
 		wrapper:         wrapper,
-		baseDomain:      domain,
+		baseDomain:      baseDomain,
 		apiKey:          apiKey,
 		apiToken:        apiToken,
 		organizationIDs: organizationIDs,
