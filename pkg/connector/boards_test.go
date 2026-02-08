@@ -130,7 +130,7 @@ func TestTrelloClient_GetBoards_RequestDetails(t *testing.T) {
 	// Create a test client with the mock transport.
 	httpClient := &http.Client{Transport: mockTransport}
 	baseHttpClient := uhttp.NewBaseHttpClient(httpClient)
-	testClient := client.NewClient("api-key", "api-token", test.OrganizationIDs, baseHttpClient)
+	testClient := client.NewClient("api-key", "api-token", test.OrganizationIDs, "", baseHttpClient)
 
 	// Call GetBoards.
 	ctx := context.Background()

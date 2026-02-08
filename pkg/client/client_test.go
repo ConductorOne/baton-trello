@@ -6,7 +6,7 @@ import (
 
 func TestNewTrelloClient(t *testing.T) {
 	t.Run("Client URL", func(t *testing.T) {
-		client := NewClient("", "", []string{})
+		client := NewClient("", "", []string{}, "")
 		if client.baseDomain != domain {
 			t.Errorf("Expected baseURL to be %s, got %s", domain, client.baseDomain)
 		}
@@ -17,7 +17,7 @@ func TestTrelloClient_AddCredentials(t *testing.T) {
 	mockApiKey := "api-key"
 	mockApiToken := "api-token"
 
-	client := NewClient(mockApiKey, mockApiToken, []string{})
+	client := NewClient(mockApiKey, mockApiToken, []string{}, "")
 
 	if client.apiKey != mockApiKey {
 		t.Errorf("Set API key failed. Expected %s, got %s", mockApiKey, client.apiKey)
