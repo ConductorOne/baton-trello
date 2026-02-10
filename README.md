@@ -1,6 +1,6 @@
 ![Baton Logo](./baton-logo.png)
 
-# `baton-trello` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-trello.svg)](https://pkg.go.dev/github.com/conductorone/baton-trello) ![main ci](https://github.com/conductorone/baton-trello/actions/workflows/main.yaml/badge.svg)
+# `baton-trello` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-trello.svg)](https://pkg.go.dev/github.com/conductorone/baton-trello) ![ci](https://github.com/conductorone/baton-trello/actions/workflows/ci.yaml/badge.svg) ![verify](https://github.com/conductorone/baton-trello/actions/workflows/verify.yaml/badge.svg)
 
 `baton-trello` is a connector for built using the [Baton SDK](https://github.com/conductorone/baton-sdk).
 
