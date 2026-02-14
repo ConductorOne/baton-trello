@@ -25,6 +25,7 @@ var (
 	BaseURLField = field.StringField(
 		"base-url",
 		field.WithDescription("Override the Trello API URL (for testing)"),
+		field.WithHidden(true),
 	)
 
 	// FieldRelationships defines relationships between the fields.
