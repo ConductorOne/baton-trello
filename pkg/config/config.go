@@ -26,6 +26,7 @@ var (
 		"base-url",
 		field.WithDescription("Override the Trello API URL (for testing)"),
 		field.WithHidden(true),
+		field.WithExportTarget(field.ExportTargetCLIOnly),
 	)
 
 	// FieldRelationships defines relationships between the fields.
