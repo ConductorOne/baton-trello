@@ -22,6 +22,12 @@ var (
 		field.WithDescription("Limit syncing to specific organizations by providing organization slugs."),
 		field.WithRequired(true),
 	)
+	BaseURLField = field.StringField(
+		"base-url",
+		field.WithDescription("Override the Trello API URL (for testing)"),
+		field.WithHidden(true),
+		field.WithExportTarget(field.ExportTargetCLIOnly),
+	)
 
 	// FieldRelationships defines relationships between the fields.
 	FieldRelationships = []field.SchemaFieldRelationship{}
@@ -32,6 +38,7 @@ var Config = field.NewConfiguration([]field.SchemaField{
 	ApiKeyField,
 	ApiTokenField,
 	OrganizationsField,
+	BaseURLField,
 })
 
 // ValidateConfig is run after the configuration is loaded, and should return an
