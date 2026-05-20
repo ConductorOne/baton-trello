@@ -121,8 +121,8 @@ func newOrganizationBuilder(c *client.TrelloClient) *organizationBuilder {
 }
 
 func (o *organizationBuilder) GetMemberships(ctx context.Context, organizationID string) error {
-	o.membershipsMutex.RLock()
-	defer o.membershipsMutex.RUnlock()
+	o.membershipsMutex.Lock()
+	defer o.membershipsMutex.Unlock()
 
 	if o.memberships == nil {
 		o.memberships = make(map[string][]client.User)

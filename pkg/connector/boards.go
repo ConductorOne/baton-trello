@@ -205,8 +205,8 @@ func evaluateMembership(membershipType, permission string) bool {
 }
 
 func (o *boardBuilder) GetMemberships(ctx context.Context, boardID string) error {
-	o.membershipsMutex.RLock()
-	defer o.membershipsMutex.RUnlock()
+	o.membershipsMutex.Lock()
+	defer o.membershipsMutex.Unlock()
 
 	if o.memberships == nil {
 		o.memberships = make(map[string][]client.User)
