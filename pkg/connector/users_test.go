@@ -159,6 +159,7 @@ func TestTrelloClient_GetUserDetails(t *testing.T) {
 	// Verify the result.
 	if user == nil {
 		t.Fatal("Expected non-nil result")
+		return // unreachable; satisfies staticcheck SA5011 which can't model t.Fatal
 	}
 
 	expectedUser := client.User{
