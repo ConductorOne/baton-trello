@@ -10,11 +10,13 @@ var (
 	ApiKeyField = field.StringField(
 		"api-key",
 		field.WithDescription("The API key for your Trello account"),
+		field.WithIsSecret(true),
 		field.WithRequired(true),
 	)
 	ApiTokenField = field.StringField(
 		"api-token",
 		field.WithDescription("The API token for your Trello account"),
+		field.WithIsSecret(true),
 		field.WithRequired(true),
 	)
 	OrganizationsField = field.StringSliceField(
