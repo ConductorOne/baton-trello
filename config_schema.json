@@ -94,7 +94,9 @@
     },
     {
       "name": "api-key",
+      "displayName": "API Key",
       "description": "The API key for your Trello account",
+      "placeholder": "your-trello-api-key",
       "isRequired": true,
       "isSecret": true,
       "stringField": {
@@ -105,7 +107,9 @@
     },
     {
       "name": "api-token",
+      "displayName": "API Token",
       "description": "The API token for your Trello account",
+      "placeholder": "your-trello-api-token",
       "isRequired": true,
       "isSecret": true,
       "stringField": {
@@ -116,6 +120,7 @@
     },
     {
       "name": "organizations",
+      "displayName": "Organizations",
       "description": "Limit syncing to specific organizations by providing organization slugs.",
       "isRequired": true,
       "stringSliceField": {
@@ -124,5 +129,8 @@
         }
       }
     }
-  ]
+  ],
+  "displayName": "Trello",
+  "helpUrl": "/docs/baton/trello",
+  "iconUrl": "/static/app-icons/trello.svg"
 }
