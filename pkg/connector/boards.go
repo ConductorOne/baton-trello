@@ -6,8 +6,6 @@ import (
 	"sync"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
-	"github.com/conductorone/baton-sdk/pkg/annotations"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
@@ -25,29 +23,29 @@ func (o *boardBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 	return boardResourceType
 }
 
-func (o *boardBuilder) List(ctx context.Context, _ *v2.ResourceId, _ *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (o *boardBuilder) List(ctx context.Context, _ *v2.ResourceId, _ resource.SyncOpAttrs) ([]*v2.Resource, *resource.SyncOpResults, error) {
 	var resources []*v2.Resource
 
 	// Note: Trello API doesn't support pagination for boards by organization queries.
 	boards, annotation, err := o.client.ListBoards(ctx)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	for _, board := range boards {
 		boardCopy := board
 		parentResourceId, err := resource.NewResourceID(organizationResourceType, board.IdOrganization)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 		boardResource, err := parseIntoBoardResource(ctx, &boardCopy, parentResourceId)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 		resources = append(resources, boardResource)
 	}
 
-	return resources, "", annotation, nil
+	return resources, &resource.SyncOpResults{Annotations: annotation}, nil
 }
 
 func parseIntoBoardResource(_ context.Context, board *client.Board, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
@@ -83,13 +81,13 @@ func parseIntoBoardResource(_ context.Context, board *client.Board, parentResour
 	return ret, nil
 }
 
-func (o *boardBuilder) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+func (o *boardBuilder) Entitlements(ctx context.Context, res *v2.Resource, _ resource.SyncOpAttrs) ([]*v2.Entitlement, *resource.SyncOpResults, error) {
 	var entitlements []*v2.Entitlement
 
 	// Note: Trello API only support getting boards by ID so it is not a bulk operation. Pagination is not needed.
-	board, _, err := o.client.GetBoardDetails(ctx, resource.Id.Resource)
+	board, _, err := o.client.GetBoardDetails(ctx, res.Id.Resource)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	// Self join
@@ -99,65 +97,65 @@ func (o *boardBuilder) Entitlements(ctx context.Context, resource *v2.Resource, 
 	}
 	assigmentOptions := []entitlement.EntitlementOption{
 		entitlement.WithGrantableTo(userResourceType),
-		entitlement.WithDescription(fmt.Sprintf("Is %s for board %s in Trello", selfJoin, resource.DisplayName)),
-		entitlement.WithDisplayName(fmt.Sprintf("%s Board %s", resource.DisplayName, selfJoin)),
+		entitlement.WithDescription(fmt.Sprintf("Is %s for board %s in Trello", selfJoin, res.DisplayName)),
+		entitlement.WithDisplayName(fmt.Sprintf("%s Board %s", res.DisplayName, selfJoin)),
 	}
-	entitlements = append(entitlements, entitlement.NewPermissionEntitlement(resource, selfJoin, assigmentOptions...))
+	entitlements = append(entitlements, entitlement.NewPermissionEntitlement(res, selfJoin, assigmentOptions...))
 
 	// Voting
 	voting := fmt.Sprintf("Voting %s", board.Preferences.Voting)
 	assigmentOptions = []entitlement.EntitlementOption{
 		entitlement.WithGrantableTo(userResourceType),
-		entitlement.WithDescription(fmt.Sprintf("%s for board %s in Trello", voting, resource.DisplayName)),
-		entitlement.WithDisplayName(fmt.Sprintf("%s Board %s", resource.DisplayName, voting)),
+		entitlement.WithDescription(fmt.Sprintf("%s for board %s in Trello", voting, res.DisplayName)),
+		entitlement.WithDisplayName(fmt.Sprintf("%s Board %s", res.DisplayName, voting)),
 	}
-	entitlements = append(entitlements, entitlement.NewPermissionEntitlement(resource, voting, assigmentOptions...))
+	entitlements = append(entitlements, entitlement.NewPermissionEntitlement(res, voting, assigmentOptions...))
 
 	// Comments
 	comments := fmt.Sprintf("Comments %s", board.Preferences.Comments)
 	assigmentOptions = []entitlement.EntitlementOption{
 		entitlement.WithGrantableTo(userResourceType),
-		entitlement.WithDescription(fmt.Sprintf("%s for board %s in Trello", comments, resource.DisplayName)),
-		entitlement.WithDisplayName(fmt.Sprintf("%s Board %s", resource.DisplayName, comments)),
+		entitlement.WithDescription(fmt.Sprintf("%s for board %s in Trello", comments, res.DisplayName)),
+		entitlement.WithDisplayName(fmt.Sprintf("%s Board %s", res.DisplayName, comments)),
 	}
-	entitlements = append(entitlements, entitlement.NewPermissionEntitlement(resource, comments, assigmentOptions...))
+	entitlements = append(entitlements, entitlement.NewPermissionEntitlement(res, comments, assigmentOptions...))
 
 	// Invitations
 	invitations := fmt.Sprintf("Invitations %s", board.Preferences.Invitations)
 	assigmentOptions = []entitlement.EntitlementOption{
 		entitlement.WithGrantableTo(userResourceType),
-		entitlement.WithDescription(fmt.Sprintf("%s for board %s in Trello", invitations, resource.DisplayName)),
-		entitlement.WithDisplayName(fmt.Sprintf("%s Board %s", resource.DisplayName, invitations)),
+		entitlement.WithDescription(fmt.Sprintf("%s for board %s in Trello", invitations, res.DisplayName)),
+		entitlement.WithDisplayName(fmt.Sprintf("%s Board %s", res.DisplayName, invitations)),
 	}
-	entitlements = append(entitlements, entitlement.NewPermissionEntitlement(resource, invitations, assigmentOptions...))
+	entitlements = append(entitlements, entitlement.NewPermissionEntitlement(res, invitations, assigmentOptions...))
 
-	return entitlements, "", nil, nil
+	return entitlements, nil, nil
 }
 
-func (o *boardBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+func (o *boardBuilder) Grants(ctx context.Context, res *v2.Resource, _ resource.SyncOpAttrs) ([]*v2.Grant, *resource.SyncOpResults, error) {
 	var grants []*v2.Grant
 
-	var boardID = resource.Id.Resource
+	var boardID = res.Id.Resource
 
 	// Note: Trello API only support getting boards by ID so it is not a bulk operation. Pagination is not needed.
 	board, _, err := o.client.GetBoardDetails(ctx, boardID)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 	err = o.GetMemberships(ctx, boardID)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	for _, membership := range o.memberships[boardID] {
-		userResource, _ := parseIntoUserResource(ctx, &membership, resource.Id)
+		userResource, _ := parseIntoUserResource(ctx, &membership, res.Id)
 		membershipType := membership.MemberType
 
 		// Self join
 		if board.Preferences.SelfJoin {
 			selfJoin := "self join enabled"
-			membershipGrant := grant.NewGrant(resource, selfJoin, userResource, grant.WithAnnotation(&v2.V1Identifier{
-				Id: fmt.Sprintf("board-grant:%s:%s:%s", resource.Id.Resource, membership.MemberID, selfJoin),
+			membershipGrant := grant.NewGrant(res, selfJoin, userResource, grant.WithAnnotation(&v2.V1Identifier{
+				Id: fmt.Sprintf("board-grant:%s:%s:%s", res.Id.Resource, membership.MemberID, selfJoin),
 			}))
 			grants = append(grants, membershipGrant)
 		}
@@ -165,8 +163,8 @@ func (o *boardBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pag
 		// Voting
 		if evaluateMembership(membershipType, board.Preferences.Voting) {
 			voting := fmt.Sprintf("Voting %s", board.Preferences.Voting)
-			membershipGrant := grant.NewGrant(resource, voting, userResource, grant.WithAnnotation(&v2.V1Identifier{
-				Id: fmt.Sprintf("board-grant:%s:%s:%s", resource.Id.Resource, membership.MemberID, voting),
+			membershipGrant := grant.NewGrant(res, voting, userResource, grant.WithAnnotation(&v2.V1Identifier{
+				Id: fmt.Sprintf("board-grant:%s:%s:%s", res.Id.Resource, membership.MemberID, voting),
 			}))
 			grants = append(grants, membershipGrant)
 		}
@@ -174,8 +172,8 @@ func (o *boardBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pag
 		// Comments
 		if evaluateMembership(membershipType, board.Preferences.Comments) {
 			comments := fmt.Sprintf("Comments %s", board.Preferences.Comments)
-			membershipGrant := grant.NewGrant(resource, comments, userResource, grant.WithAnnotation(&v2.V1Identifier{
-				Id: fmt.Sprintf("board-grant:%s:%s:%s", resource.Id.Resource, membership.MemberID, comments),
+			membershipGrant := grant.NewGrant(res, comments, userResource, grant.WithAnnotation(&v2.V1Identifier{
+				Id: fmt.Sprintf("board-grant:%s:%s:%s", res.Id.Resource, membership.MemberID, comments),
 			}))
 			grants = append(grants, membershipGrant)
 		}
@@ -183,14 +181,14 @@ func (o *boardBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pag
 		// Invitations
 		if evaluateMembership(membershipType, board.Preferences.Invitations) {
 			invitations := fmt.Sprintf("Invitations %s", board.Preferences.Invitations)
-			membershipGrant := grant.NewGrant(resource, invitations, userResource, grant.WithAnnotation(&v2.V1Identifier{
-				Id: fmt.Sprintf("board-grant:%s:%s:%s", resource.Id.Resource, membership.MemberID, invitations),
+			membershipGrant := grant.NewGrant(res, invitations, userResource, grant.WithAnnotation(&v2.V1Identifier{
+				Id: fmt.Sprintf("board-grant:%s:%s:%s", res.Id.Resource, membership.MemberID, invitations),
 			}))
 			grants = append(grants, membershipGrant)
 		}
 	}
 
-	return grants, "", nil, nil
+	return grants, nil, nil
 }
 
 func newBoardBuilder(c *client.TrelloClient) *boardBuilder {

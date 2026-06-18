@@ -9,18 +9,23 @@ import (
 var (
 	ApiKeyField = field.StringField(
 		"api-key",
+		field.WithDisplayName("API Key"),
+		field.WithPlaceholder("your-trello-api-key"),
 		field.WithDescription("The API key for your Trello account"),
 		field.WithIsSecret(true),
 		field.WithRequired(true),
 	)
 	ApiTokenField = field.StringField(
 		"api-token",
+		field.WithDisplayName("API Token"),
+		field.WithPlaceholder("your-trello-api-token"),
 		field.WithDescription("The API token for your Trello account"),
 		field.WithIsSecret(true),
 		field.WithRequired(true),
 	)
 	OrganizationsField = field.StringSliceField(
 		"organizations",
+		field.WithDisplayName("Organizations"),
 		field.WithDescription("Limit syncing to specific organizations by providing organization slugs."),
 		field.WithRequired(true),
 	)
@@ -36,12 +41,17 @@ var (
 )
 
 // Config is the configuration schema for the connector.
-var Config = field.NewConfiguration([]field.SchemaField{
-	ApiKeyField,
-	ApiTokenField,
-	OrganizationsField,
-	BaseURLField,
-})
+var Config = field.NewConfiguration(
+	[]field.SchemaField{
+		ApiKeyField,
+		ApiTokenField,
+		OrganizationsField,
+		BaseURLField,
+	},
+	field.WithConnectorDisplayName("Trello"),
+	field.WithIconUrl("/static/app-icons/trello.svg"),
+	field.WithHelpUrl("/docs/baton/trello"),
+)
 
 // ValidateConfig is run after the configuration is loaded, and should return an
 // error if it isn't valid. Implementing this function is optional, it only
