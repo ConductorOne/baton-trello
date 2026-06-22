@@ -3,7 +3,6 @@ package connector
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
@@ -13,10 +12,8 @@ import (
 )
 
 type organizationBuilder struct {
-	resourceType     *v2.ResourceType
-	client           *client.TrelloClient
-	memberships      map[string][]client.User
-	membershipsMutex sync.RWMutex
+	resourceType *v2.ResourceType
+	client       *client.TrelloClient
 }
 
 var memberTypes = []string{"admin", "normal", "observer"}
@@ -93,14 +90,12 @@ func (o *organizationBuilder) Grants(ctx context.Context, res *v2.Resource, _ re
 
 	var organizationID = res.Id.Resource
 
-	// Note: Trello API doesn't support pagination for member queries.
-	err := o.GetMemberships(ctx, organizationID)
-
+	memberships, err := o.client.ListMembershipsByOrg(ctx, organizationID)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	for _, membership := range o.memberships[organizationID] {
+	for _, membership := range memberships {
 		userResource, _ := parseIntoUserResource(ctx, &membership, res.Id)
 		membershipGrant := grant.NewGrant(res, membership.MemberType, userResource, grant.WithAnnotation(&v2.V1Identifier{
 			Id: fmt.Sprintf("org-grant:%s:%s:%s", res.Id.Resource, membership.MemberID, membership.MemberType),
@@ -116,27 +111,4 @@ func newOrganizationBuilder(c *client.TrelloClient) *organizationBuilder {
 		resourceType: organizationResourceType,
 		client:       c,
 	}
-}
-
-func (o *organizationBuilder) GetMemberships(ctx context.Context, organizationID string) error {
-	o.membershipsMutex.Lock()
-	defer o.membershipsMutex.Unlock()
-
-	if o.memberships == nil {
-		o.memberships = make(map[string][]client.User)
-	}
-
-	if o.memberships[organizationID] != nil || len(o.memberships[organizationID]) > 0 {
-		return nil
-	}
-
-	memberships, err := o.client.ListMembershipsByOrg(ctx, organizationID)
-
-	if err != nil {
-		return err
-	}
-
-	o.memberships[organizationID] = memberships
-
-	return nil
 }

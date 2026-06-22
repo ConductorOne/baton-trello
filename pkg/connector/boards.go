@@ -3,7 +3,6 @@ package connector
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
@@ -13,10 +12,8 @@ import (
 )
 
 type boardBuilder struct {
-	resourceType     *v2.ResourceType
-	client           *client.TrelloClient
-	memberships      map[string][]client.User
-	membershipsMutex sync.RWMutex
+	resourceType *v2.ResourceType
+	client       *client.TrelloClient
 }
 
 func (o *boardBuilder) ResourceType(_ context.Context) *v2.ResourceType {
@@ -142,12 +139,12 @@ func (o *boardBuilder) Grants(ctx context.Context, res *v2.Resource, _ resource.
 	if err != nil {
 		return nil, nil, err
 	}
-	err = o.GetMemberships(ctx, boardID)
+	memberships, err := o.client.ListMembershipsByBoard(ctx, boardID)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	for _, membership := range o.memberships[boardID] {
+	for _, membership := range memberships {
 		userResource, _ := parseIntoUserResource(ctx, &membership, res.Id)
 		membershipType := membership.MemberType
 
@@ -200,27 +197,4 @@ func newBoardBuilder(c *client.TrelloClient) *boardBuilder {
 
 func evaluateMembership(membershipType, permission string) bool {
 	return (membershipType == "admin" && permission == "admins") || permission == "members"
-}
-
-func (o *boardBuilder) GetMemberships(ctx context.Context, boardID string) error {
-	o.membershipsMutex.Lock()
-	defer o.membershipsMutex.Unlock()
-
-	if o.memberships == nil {
-		o.memberships = make(map[string][]client.User)
-	}
-
-	if o.memberships[boardID] != nil || len(o.memberships[boardID]) > 0 {
-		return nil
-	}
-
-	memberships, err := o.client.ListMembershipsByBoard(ctx, boardID)
-
-	if err != nil {
-		return err
-	}
-
-	o.memberships[boardID] = memberships
-
-	return nil
 }
