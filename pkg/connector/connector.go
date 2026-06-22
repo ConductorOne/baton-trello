@@ -2,12 +2,13 @@ package connector
 
 import (
 	"context"
-
 	"io"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/cli"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
+	cfg "github.com/conductorone/baton-trello/pkg/config"
 	"github.com/conductorone/baton-trello/pkg/client"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"go.uber.org/zap"
@@ -17,9 +18,9 @@ type Connector struct {
 	client *client.TrelloClient
 }
 
-// ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
-func (d *Connector) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
-	return []connectorbuilder.ResourceSyncer{
+// ResourceSyncers returns a ResourceSyncerV2 for each resource type that should be synced from the upstream service.
+func (d *Connector) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncerV2 {
+	return []connectorbuilder.ResourceSyncerV2{
 		newUserBuilder(d.client),
 		newOrganizationBuilder(d.client),
 		newBoardBuilder(d.client),
@@ -59,4 +60,13 @@ func New(ctx context.Context, apiKey string, apiToken string, orgs []string, bas
 	return &Connector{
 		client: trelloClient,
 	}, nil
+}
+
+// NewLambdaConnector returns a new ConnectorBuilderV2 suitable for use with RunConnector.
+func NewLambdaConnector(ctx context.Context, ac *cfg.Trello, _ *cli.ConnectorOpts) (connectorbuilder.ConnectorBuilderV2, []connectorbuilder.Opt, error) {
+	c, err := New(ctx, ac.ApiKey, ac.ApiToken, ac.Organizations, ac.BaseUrl)
+	if err != nil {
+		return nil, nil, err
+	}
+	return c, nil, nil
 }
