@@ -98,7 +98,6 @@
       "description": "The API key for your Trello account",
       "placeholder": "your-trello-api-key",
       "isRequired": true,
-      "isSecret": true,
       "stringField": {
         "rules": {
           "isRequired": true
