@@ -8,11 +8,16 @@ sidebarTitle: "Atlassian Trello"
 
 ## Capabilities
 
+{/* AUTO-GENERATED:START - capabilities
+     Generated from baton_capabilities.json. Do not edit manually. */}
+
 | Resource | Sync | Provision |
 | :--- | :--- | :--- |
 | Accounts | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> |  |
 | Organizations | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> |  |
 | Boards | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> |  |
+
+{/* AUTO-GENERATED:END - capabilities */}
 
 ## Gather Trello credentials
 
@@ -112,13 +117,16 @@ Finally, look up the short name (slug) of each Trello organization you want to s
     Find the **Settings** area of the page and click **Edit**.
     </Step>
     <Step>
-    Paste the API key into the **API key** field.
-    </Step>
-    <Step>
-    Paste the API token into the **API token** field.
-    </Step>
-    <Step>
-    Paste the comma-separated list of organization slugs you want to sync into the **Organizations** field.
+    Enter the required configuration:
+
+    {/* AUTO-GENERATED:START - config-params
+         Generated from config_schema.json. Do not edit manually. */}
+
+    - **api-key** (required): The API key for your Trello account
+    - **api-token** (required): The API token for your Trello account
+    - **organizations** (required): Limit syncing to specific organizations by providing organization slugs.
+
+    {/* AUTO-GENERATED:END - config-params */}
     </Step>
     <Step>
     Click **Save**.
