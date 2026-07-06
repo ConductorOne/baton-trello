@@ -12,7 +12,8 @@ var (
 		field.WithDisplayName("API Key"),
 		field.WithPlaceholder("your-trello-api-key"),
 		field.WithDescription("The API key for your Trello account"),
-		field.WithIsSecret(true),
+		// "API key is intended to be publicly accessible." (https://developer.atlassian.com/cloud/trello/guides/rest-api/api-introduction/#managing-your-api-key)
+		field.WithIsSecret(false),
 		field.WithRequired(true),
 	)
 	ApiTokenField = field.StringField(
