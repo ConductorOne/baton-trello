@@ -50,9 +50,7 @@ func parseIntoOrganizationResource(_ context.Context, organization *client.Organ
 		"display_name":    organization.DisplayName,
 	}
 
-	groupTraits := []resource.GroupTraitOption{
-		resource.WithGroupProfile(profile),
-	}
+	groupTraits := []resource.GroupTraitOption{}
 
 	displayName := organization.DisplayName
 
@@ -61,6 +59,7 @@ func parseIntoOrganizationResource(_ context.Context, organization *client.Organ
 		organizationResourceType,
 		organization.ID,
 		groupTraits,
+		resource.WithResourceProfile(profile),
 		resource.WithParentResourceID(parentResourceID),
 	)
 	if err != nil {
