@@ -58,9 +58,7 @@ func parseIntoBoardResource(_ context.Context, board *client.Board, parentResour
 		"self_join":        board.Preferences.SelfJoin,
 	}
 
-	groupTraits := []resource.GroupTraitOption{
-		resource.WithGroupProfile(profile),
-	}
+	groupTraits := []resource.GroupTraitOption{}
 
 	displayName := board.Name
 
@@ -69,6 +67,7 @@ func parseIntoBoardResource(_ context.Context, board *client.Board, parentResour
 		boardResourceType,
 		board.ID,
 		groupTraits,
+		resource.WithResourceProfile(profile),
 		resource.WithParentResourceID(parentResourceID),
 	)
 	if err != nil {

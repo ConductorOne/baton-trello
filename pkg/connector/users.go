@@ -52,8 +52,6 @@ func parseIntoUserResource(_ context.Context, user *client.User, parentResourceI
 	}
 
 	userTraits := []resource.UserTraitOption{
-		resource.WithUserProfile(profile),
-		resource.WithStatus(userStatus),
 		resource.WithUserLogin(user.Username),
 	}
 
@@ -64,6 +62,8 @@ func parseIntoUserResource(_ context.Context, user *client.User, parentResourceI
 		userResourceType,
 		user.ID,
 		userTraits,
+		resource.WithResourceProfile(profile),
+		resource.WithResourceStatus(v2.Status_ResourceStatus(userStatus), ""),
 		resource.WithParentResourceID(parentResourceID),
 	)
 	if err != nil {
