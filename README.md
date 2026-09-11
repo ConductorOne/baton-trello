@@ -27,7 +27,7 @@ baton resources
 ## docker
 
 ```
-docker run --rm -v $(pwd):/out -e BATON_API_KEY=apiKey -e BATON_API_TOKEN=apiToken -e BATON_ORGS=trelloOrgs ghcr.io/conductorone/baton-trello:latest -f "/out/sync.c1z"
+docker run --rm -v $(pwd):/out -e BATON_API_KEY=apiKey -e BATON_API_TOKEN=apiToken -e BATON_ORGS=trelloOrgs public.ecr.aws/conductorone/baton-trello:latest -f "/out/sync.c1z"
 docker run --rm -v $(pwd):/out ghcr.io/conductorone/baton:latest -f "/out/sync.c1z" resources
 ```
 
