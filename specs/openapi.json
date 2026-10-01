@@ -1,0 +1,795 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Trello API - baton-trello connector surface",
+    "version": "1.0.0",
+    "description": "This document describes ONLY the subset of the Trello REST API that the baton-trello connector (pkg/client/client.go) calls. It is not a full description of Trello's API. Scope, shapes, and evidence are recorded per operation in the connector repository's PR description.\n\nAuth: every request appends `key` (API key) and `token` (API token) as query parameters (see `authorizeEndpointUrl` in pkg/client/client.go). The connector does not use Trello's OAuth1 header flow.\n\nBase URL: defaults to https://api.trello.com/1 and can be overridden by the connector's `base-url` config field (CLI flag `--base-url`, mapstructure key `base-url`), which is hidden/CLI-only and intended for pointing the connector at a mock server in tests."
+  },
+  "servers": [
+    {
+      "url": "https://api.trello.com/1",
+      "description": "Default Trello API base URL (pkg/client/client.go `domain` constant). Overridable via the connector's `base-url` config field (pkg/config/config.go `BaseURLField`, CLI flag --base-url)."
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": [],
+      "ApiTokenAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "key",
+        "description": "Trello API key. Appended to every request as `?key=...` by `authorizeEndpointUrl` (pkg/client/client.go). Sourced from the connector's `api-key` config field."
+      },
+      "ApiTokenAuth": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "token",
+        "description": "Trello API token. Appended to every request as `&token=...` by `authorizeEndpointUrl` (pkg/client/client.go). Sourced from the connector's `api-token` config field. Trello also supports an OAuth1 `Authorization` header flow, which this connector does not use."
+      }
+    },
+    "schemas": {
+      "TrelloId": {
+        "type": "string",
+        "description": "Trello object id. Per vendor docs this is normally a 24-character hex Mongo-style id (e.g. `5abbe4b7ddc1b351ef961414`); this repo's test fixtures use UUID-like placeholder strings instead, so no `pattern` is enforced here."
+      },
+      "Member": {
+        "type": "object",
+        "description": "Trello member (user) object, as returned by GET /organizations/{id}/members and GET /members/{id}. Only the properties the connector's `client.User` struct declares (pkg/client/model.go) are modeled; Trello's real Member object has many more fields (bio, email, avatarUrl, prefs, ...) that this connector never reads.",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/TrelloId"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "Member's display name. Go field: User.Name (json:\"fullName\")."
+          },
+          "username": {
+            "type": "string",
+            "description": "Member's Trello username. Go field: User.Username."
+          },
+          "memberType": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "ghost"
+            ],
+            "description": "Account-state classification of the Member resource itself (vendor docs: developer.atlassian.com Member schema). NOTE: this is a different concept from the membership-role `memberType` (admin/normal/observer) returned by the /memberships endpoints below -- the connector binds both into the same Go struct field (`client.User.MemberType`), so do not conflate the two."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "Membership": {
+        "type": "object",
+        "description": "Trello membership record, as returned by GET /organizations/{id}/memberships, GET /boards/{id}/memberships, and embedded in Board.memberships. Only the properties `client.User` declares are modeled (pkg/client/model.go); the real API also returns `unconfirmed` and `deactivated` booleans (confirmed in test/mockResponses/boardsMock.json) which the connector never reads and are therefore omitted here.",
+        "properties": {
+          "id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TrelloId"
+              }
+            ],
+            "description": "Membership record id (NOT the member's id). Go field: User.ID (json:\"id\") when decoding a membership list -- note this struct field is reused for two different meanings depending on the endpoint; see Membership vs Member schema descriptions."
+          },
+          "idMember": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TrelloId"
+              }
+            ],
+            "description": "The member's own id. Go field: User.MemberID (json:\"idMember\")."
+          },
+          "memberType": {
+            "type": "string",
+            "description": "Membership role. Confirmed values from test/mockResponses/boardsMock.json: `admin`, `normal`. The organization entitlements builder (pkg/connector/organizations.go `memberTypes` var) additionally treats `observer` as a valid organization-level role, but that third value is not confirmed by a fixture or by Trello's published OpenAPI document (its `Memberships` schema is a near-empty stub listing only `id`) -- `observer` is recorded here as client-code-only evidence, not vendor-doc-proven. No enum is declared on this property for that reason."
+          }
+        },
+        "required": [
+          "id",
+          "idMember"
+        ]
+      },
+      "Organization": {
+        "type": "object",
+        "description": "Trello organization (Workspace) object, as returned by GET /organizations/{id}. Only the properties `client.Organization` declares are modeled (pkg/client/model.go). Trello's published OpenAPI document (swagger.v3.json) has an incomplete schema for this resource -- it omits `desc`, `descData`, `website`, `teamType`, `logoHash`, `logoUrl`, `products`, and `powerUps` entirely, and lists `premiumFeatures` where this connector (and the recorded fixture) show `products`/`powerUps` instead. For those properties this spec relies on test/mockResponses/organizationMock.json (a recorded response) plus the Go struct tags, not the vendor spec.",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/TrelloId"
+          },
+          "name": {
+            "type": "string",
+            "description": "Vendor-confirmed (developer.atlassian.com Organization schema)."
+          },
+          "displayName": {
+            "type": "string",
+            "description": "Vendor-confirmed."
+          },
+          "desc": {
+            "type": "string",
+            "description": "Fixture-confirmed only (vendor schema omits this field); empty string in the recorded fixture."
+          },
+          "descData": {
+            "type": "object",
+            "description": "Fixture-confirmed only. Go models this as `struct { Emoji struct{} }`; shape of `emoji` beyond an empty object is unproven.",
+            "properties": {
+              "emoji": {
+                "type": "object",
+                "description": "Unproven shape; empty object in the recorded fixture and in the Go zero value."
+              }
+            }
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Vendor-confirmed."
+          },
+          "website": {
+            "type": "string",
+            "nullable": true,
+            "description": "Fixture-confirmed only; null in the recorded fixture."
+          },
+          "teamType": {
+            "type": "string",
+            "nullable": true,
+            "description": "Fixture-confirmed only; null in the recorded fixture."
+          },
+          "logoHash": {
+            "type": "string",
+            "nullable": true,
+            "description": "Fixture-confirmed only; null in the recorded fixture."
+          },
+          "logoUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "Fixture-confirmed only; null in the recorded fixture."
+          },
+          "offering": {
+            "type": "string",
+            "description": "Vendor-confirmed (example values include `trello.business_class`, `trello.enterprise`); not modeled as a closed enum."
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Fixture-confirmed only (`[110]`); not present in the vendor's generated schema."
+          },
+          "powerUps": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Fixture-confirmed only (`[110]`); not present in the vendor's generated schema."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "BoardPrefs": {
+        "type": "object",
+        "description": "Board preferences object (`prefs`). Only properties `client.Preferences` declares are modeled (pkg/client/model.go).",
+        "properties": {
+          "permissionLevel": {
+            "type": "string",
+            "enum": [
+              "org",
+              "board"
+            ],
+            "description": "Vendor-confirmed."
+          },
+          "hideVotes": {
+            "type": "boolean",
+            "description": "Vendor-confirmed."
+          },
+          "voting": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "enabled"
+            ],
+            "description": "Vendor-confirmed."
+          },
+          "comments": {
+            "type": "string",
+            "description": "Vendor schema declares this as a plain string with no enum; connector logic (pkg/connector/boards.go `evaluateMembership`) only special-cases the literal value `members`."
+          },
+          "invitations": {
+            "type": "string",
+            "enum": [
+              "admins",
+              "members"
+            ],
+            "description": "Vendor-confirmed."
+          },
+          "selfJoin": {
+            "type": "boolean",
+            "description": "Vendor-confirmed."
+          },
+          "cardCovers": {
+            "type": "boolean",
+            "description": "Vendor-confirmed."
+          },
+          "showCompleteStatus": {
+            "type": "boolean",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "cardCounts": {
+            "type": "boolean",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "isTemplate": {
+            "type": "boolean",
+            "description": "Vendor-confirmed."
+          },
+          "cardAging": {
+            "type": "string",
+            "enum": [
+              "pirate",
+              "regular"
+            ],
+            "description": "Vendor-confirmed."
+          },
+          "calendarFeedEnabled": {
+            "type": "boolean",
+            "description": "Vendor-confirmed."
+          },
+          "hiddenPluginBoardButtons": {
+            "type": "array",
+            "items": {},
+            "description": "Client code only; Go models this as `[]interface{}`, shape unproven."
+          },
+          "switcherViews": {
+            "type": "array",
+            "description": "Client code only; not present in Trello's published OpenAPI document.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "viewType": {
+                  "type": "string"
+                },
+                "enabled": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "background": {
+            "type": "string",
+            "nullable": true,
+            "description": "Vendor schema types this as a TrelloId reference (background image/color id)."
+          },
+          "backgroundColor": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "backgroundDarkColor": {
+            "description": "Client code only; Go models this as `interface{}`, shape unproven (can include null). No `type` is constrained."
+          },
+          "backgroundImage": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "description": "Vendor-confirmed as a string; Go models it as `interface{}` because it can also be null."
+          },
+          "backgroundDarkImage": {
+            "description": "Client code only; Go models this as `interface{}`, shape unproven (can include null). No `type` is constrained."
+          },
+          "backgroundImageScaled": {
+            "type": "array",
+            "items": {},
+            "nullable": true,
+            "description": "Vendor schema says array of ImageDescriptor objects; Go models it as `interface{}` and the connector never reads it, so item shape is unproven here."
+          },
+          "backgroundTile": {
+            "type": "boolean",
+            "description": "Vendor-confirmed."
+          },
+          "backgroundBrightness": {
+            "type": "string",
+            "description": "Vendor-confirmed (example value `dark`); no enum declared by the vendor."
+          },
+          "sharedSourceUrl": {
+            "description": "Client code only; Go models this as `interface{}`, shape unproven (can include null). No `type` is constrained."
+          },
+          "backgroundBottomColor": {
+            "type": "string",
+            "description": "Vendor-confirmed."
+          },
+          "backgroundTopColor": {
+            "type": "string",
+            "description": "Vendor-confirmed."
+          },
+          "canBePublic": {
+            "type": "boolean",
+            "description": "Vendor-confirmed."
+          },
+          "canBeEnterprise": {
+            "type": "boolean",
+            "description": "Vendor-confirmed."
+          },
+          "canBeOrg": {
+            "type": "boolean",
+            "description": "Vendor-confirmed."
+          },
+          "canBePrivate": {
+            "type": "boolean",
+            "description": "Vendor-confirmed."
+          },
+          "canInvite": {
+            "type": "boolean",
+            "description": "Vendor-confirmed."
+          }
+        }
+      },
+      "LabelNames": {
+        "type": "object",
+        "description": "Custom label-color name mapping (`labelNames`). Only properties `client.Board.LabelNames` declares are modeled (pkg/client/model.go). Trello's published OpenAPI document only confirms the 10 base colors; the `_dark`/`_light` variants are client-code-only evidence.",
+        "properties": {
+          "green": {
+            "type": "string",
+            "description": "Vendor-confirmed (developer.atlassian.com Board.labelNames schema)."
+          },
+          "yellow": {
+            "type": "string",
+            "description": "Vendor-confirmed (developer.atlassian.com Board.labelNames schema)."
+          },
+          "orange": {
+            "type": "string",
+            "description": "Vendor-confirmed (developer.atlassian.com Board.labelNames schema)."
+          },
+          "red": {
+            "type": "string",
+            "description": "Vendor-confirmed (developer.atlassian.com Board.labelNames schema)."
+          },
+          "purple": {
+            "type": "string",
+            "description": "Vendor-confirmed (developer.atlassian.com Board.labelNames schema)."
+          },
+          "blue": {
+            "type": "string",
+            "description": "Vendor-confirmed (developer.atlassian.com Board.labelNames schema)."
+          },
+          "sky": {
+            "type": "string",
+            "description": "Vendor-confirmed (developer.atlassian.com Board.labelNames schema)."
+          },
+          "lime": {
+            "type": "string",
+            "description": "Vendor-confirmed (developer.atlassian.com Board.labelNames schema)."
+          },
+          "pink": {
+            "type": "string",
+            "description": "Vendor-confirmed (developer.atlassian.com Board.labelNames schema)."
+          },
+          "black": {
+            "type": "string",
+            "description": "Vendor-confirmed (developer.atlassian.com Board.labelNames schema)."
+          },
+          "green_dark": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "yellow_dark": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "orange_dark": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "red_dark": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "purple_dark": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "blue_dark": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "sky_dark": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "lime_dark": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "pink_dark": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "black_dark": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "green_light": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "yellow_light": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "orange_light": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "red_light": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "purple_light": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "blue_light": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "sky_light": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "lime_light": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "pink_light": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          },
+          "black_light": {
+            "type": "string",
+            "description": "Client code only -- not present in Trello's published OpenAPI document."
+          }
+        }
+      },
+      "Board": {
+        "type": "object",
+        "description": "Trello board object. Only properties `client.Board` declares are modeled (pkg/client/model.go). This schema is shared by GET /organizations/{id}/boards and GET /boards/{id}, but the two operations return different subsets of it in practice -- see each operation's description.",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/TrelloId"
+          },
+          "name": {
+            "type": "string"
+          },
+          "desc": {
+            "type": "string"
+          },
+          "descData": {
+            "description": "Unproven shape: Go models this as `interface{}`. Fixtures show both `null` and an object; vendor schema says `string`. No `type` is constrained here since the real shape varies; treat as free-form."
+          },
+          "closed": {
+            "type": "boolean"
+          },
+          "idOrganization": {
+            "$ref": "#/components/schemas/TrelloId"
+          },
+          "idEnterprise": {
+            "type": "string",
+            "nullable": true,
+            "description": "Go models this as `interface{}`; always `null` in recorded fixtures."
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "shortUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "prefs": {
+            "$ref": "#/components/schemas/BoardPrefs"
+          },
+          "labelNames": {
+            "$ref": "#/components/schemas/LabelNames"
+          },
+          "memberships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Membership"
+            },
+            "description": "Only populated when the request's `fields` parameter includes `memberships` (Trello `BoardFields` enum). GET /organizations/{id}/boards defaults `fields` to `all`, which includes it (confirmed in test/mockResponses/boardsMock.json). GET /boards/{id} defaults `fields` to a fixed list that does NOT include `memberships`, and this connector never overrides that default, so this property is normally absent on the GET /boards/{id} response the connector actually receives -- see GetBoardDetails, which only reads `board.Preferences` from that call."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/organizations/{id}": {
+      "get": {
+        "operationId": "getOrganizationById",
+        "summary": "Get organization detail",
+        "description": "Called by TrelloClient.GetOrganizationDetail (pkg/client/client.go:173), in turn called once per configured organization id by ListOrganizations (pkg/client/client.go:104), which backs the organization resource's List(). No query parameters are sent beyond auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TrelloId"
+            },
+            "description": "Organization id or name, from the connector's `organizations` config field."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{id}/boards": {
+      "get": {
+        "operationId": "getOrganizationBoards",
+        "summary": "List boards in an organization",
+        "description": "Called by TrelloClient.ListBoards (pkg/client/client.go:125), once per configured organization id, backing the board resource's List(). No query parameters are sent by the connector; Trello defaults `filter` to `all` and `fields` to `all`, and the `all` fields set includes `memberships` (Trello `BoardFields` enum), which is why each board in the recorded fixture (test/mockResponses/boardsMock.json) carries a `memberships` array.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TrelloId"
+            },
+            "description": "Organization id or name."
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "enum": [
+                "all",
+                "open",
+                "closed",
+                "members",
+                "organization",
+                "public"
+              ]
+            },
+            "description": "Not sent by the connector. Documented here because it gates which boards Trello returns; Trello's default (`all`) is relied on implicitly."
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all"
+            },
+            "description": "Not sent by the connector. Documented here because Trello's default (`all`) is what causes `memberships` to be included on each returned board; see Board.memberships."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Board"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{id}/members": {
+      "get": {
+        "operationId": "getOrganizationMembers",
+        "summary": "List members of an organization",
+        "description": "Called by TrelloClient.ListUsers (pkg/client/client.go:82), once per configured organization id, backing the user resource's List(). Trello's API reference does not document any query parameters for this endpoint, and the connector sends none beyond auth.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TrelloId"
+            },
+            "description": "Organization id or name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Member"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{id}/memberships": {
+      "get": {
+        "operationId": "getOrganizationMemberships",
+        "summary": "List organization memberships",
+        "description": "Called by TrelloClient.ListMembershipsByOrg (pkg/client/client.go:187), then for each returned membership the connector calls GET /members/{id} (TrelloClient.GetMemberDetails) to fill in `fullName`/`username`. Backs the organization resource's Grants(). No query parameters are sent by the connector; Trello defaults `filter` to `all` and `member` to `false` (so member profile fields are not inlined, matching why this connector makes the follow-up GET /members/{id} call).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TrelloId"
+            },
+            "description": "Organization id."
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "enum": [
+                "all",
+                "active",
+                "admin",
+                "deactivated",
+                "me",
+                "normal"
+              ]
+            },
+            "description": "Not sent by the connector; Trello's default (`all`) is relied on implicitly."
+          },
+          {
+            "name": "member",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Not sent by the connector; Trello's default (`false`) means member profile fields are not inlined on each membership, which is why the connector makes a separate GET /members/{id} call per membership."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Membership"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/boards/{id}": {
+      "get": {
+        "operationId": "getBoardById",
+        "summary": "Get board detail",
+        "description": "Called by TrelloClient.GetBoardDetails (pkg/client/client.go:150), once per board, from the board resource's Entitlements() and Grants() (only `board.Preferences` is read from the result). No query parameters are sent by the connector; Trello's documented default for `fields` on this endpoint is the fixed list `name,desc,descData,closed,idOrganization,pinned,url,shortUrl,prefs,labelNames` (NOT `all`), so `idEnterprise` and `memberships` are normally absent from this particular response even though they appear on the Board schema used elsewhere.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TrelloId"
+            },
+            "description": "Board id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Board"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/boards/{id}/memberships": {
+      "get": {
+        "operationId": "getBoardMemberships",
+        "summary": "List board memberships",
+        "description": "Called by TrelloClient.ListMembershipsByBoard (pkg/client/client.go:164), then for each returned membership the connector calls GET /members/{id} (TrelloClient.GetMemberDetails) to fill in `fullName`/`username`. Backs the board resource's Grants(). No query parameters are sent by the connector. NOTE: Trello's published OpenAPI document (swagger.v3.json) models this operation's 200 response as a single Memberships object rather than an array, which is inconsistent with the sibling /organizations/{id}/memberships array response and with this connector's client code (`listMembershipsByResource` decodes into `[]User`). This spec models the response as an array on that client-code evidence; treat the vendor spec's singular shape here as unreliable.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TrelloId"
+            },
+            "description": "Board id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Membership"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members/{id}": {
+      "get": {
+        "operationId": "getMemberById",
+        "summary": "Get member detail",
+        "description": "Called by TrelloClient.GetMemberDetails (pkg/client/client.go:218), once per membership record returned by the board/organization memberships endpoints above, to resolve `fullName`/`username` for a member id. The caller overwrites the decoded `memberType` with the membership-role value it already had (see `listMembershipsByResource`), so this endpoint's own `memberType` value is decoded but not relied upon. No query parameters are sent by the connector; Trello defaults `fields` to `all` for this endpoint, so the full Member object is returned.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TrelloId"
+            },
+            "description": "Member id (from a membership record's `idMember`)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Member"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
